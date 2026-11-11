@@ -5,7 +5,8 @@
 
 import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
-import { base58Decode } from "./base58.js";
+import { base58Decode, base58Encode } from "./base58.js";
+import { fromBase64, randomBytes, toBase64 } from "./bytes.js";
 import { viewAccessKey, type RpcOptions } from "./rpc.js";
 
 export const NEP413_TAG = 2 ** 31 + 413;
@@ -70,11 +71,11 @@ export function verifySignature(s: SignedMessage): boolean {
   try {
     const hash = nep413Hash({
       message: s.message,
-      nonce: Buffer.from(s.nonce, "base64"),
+      nonce: fromBase64(s.nonce),
       recipient: s.recipient,
       callbackUrl: s.callbackUrl ?? null,
     });
-    return ed25519.verify(Buffer.from(s.signature, "base64"), hash, parseEd25519PublicKey(s.publicKey));
+    return ed25519.verify(fromBase64(s.signature), hash, parseEd25519PublicKey(s.publicKey));
   } catch {
     return false;
   }
@@ -83,7 +84,7 @@ export function verifySignature(s: SignedMessage): boolean {
 export interface VerifyOptions {
   expectedRecipient: string;
   /** Rejects reused nonces (single use). */
-  seenNonces: Set<string>;
+  seenNonces: { has(nonce: string): boolean; add(nonce: string): unknown };
   /** Optional freshness: the nonce's first 8 bytes are a big-endian unix-ms timestamp. */
   maxAgeMs?: number;
   now?: number;
@@ -98,7 +99,9 @@ export async function verifyNep413(s: SignedMessage, o: VerifyOptions): Promise<
   if (o.seenNonces.has(s.nonce)) return { ok: false, reason: "nonce reused" };
   if (!verifySignature(s)) return { ok: false, reason: "bad signature" };
   if (o.maxAgeMs !== undefined) {
-    const ts = Number(Buffer.from(s.nonce, "base64").readBigUInt64BE(0));
+    const nonce = fromBase64(s.nonce);
+    if (nonce.length !== 32) return { ok: false, reason: "bad nonce" };
+    const ts = Number(new DataView(nonce.buffer, nonce.byteOffset, 8).getBigUint64(0, false));
     if (Math.abs((o.now ?? Date.now()) - ts) > o.maxAgeMs) return { ok: false, reason: "stale nonce" };
   }
   try {
@@ -110,4 +113,38 @@ export async function verifyNep413(s: SignedMessage, o: VerifyOptions): Promise<
   }
   o.seenNonces.add(s.nonce);
   return { ok: true };
+}
+
+/** 32-byte nonce whose first 8 bytes are the big-endian unix-ms time (checked by `maxAgeMs`). */
+export function freshNonce(nowMs = Date.now()): Uint8Array {
+  const n = randomBytes(32);
+  new DataView(n.buffer).setBigUint64(0, BigInt(nowMs), false);
+  return n;
+}
+
+/**
+ * Signs a NEP-413 message with a NEAR `ed25519:<base58>` secret key (64 bytes: seed ‖ public key).
+ * Wallets do this in the browser; the sandbox demo and tests use it with sandbox keys.
+ */
+export function signNep413(
+  m: { message: string; recipient: string; nonce?: Uint8Array; callbackUrl?: string | null },
+  accountId: string,
+  secretKey: string,
+): SignedMessage {
+  if (!secretKey.startsWith("ed25519:")) throw new Error("only ed25519 keys are supported");
+  const raw = base58Decode(secretKey.slice("ed25519:".length));
+  if (raw.length !== 64 && raw.length !== 32) throw new Error("bad ed25519 secret key length");
+  const seed = raw.slice(0, 32);
+  const nonce = m.nonce ?? freshNonce();
+  const hash = nep413Hash({ message: m.message, nonce, recipient: m.recipient, callbackUrl: m.callbackUrl });
+  const pub = ed25519.getPublicKey(seed);
+  return {
+    accountId,
+    publicKey: `ed25519:${base58Encode(pub)}`,
+    signature: toBase64(ed25519.sign(hash, seed)),
+    message: m.message,
+    nonce: toBase64(nonce),
+    recipient: m.recipient,
+    callbackUrl: m.callbackUrl ?? null,
+  };
 }

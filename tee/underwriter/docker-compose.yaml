@@ -1,0 +1,13 @@
+services:
+  underwriter:
+    image: runway-underwriter:testnet
+    ports:
+      - "8790:8790"
+    environment:
+      - NEARAI_API_KEY
+      - NEARAI_DAILY_CALLS
+      - SPONSOR_ACCOUNT_ID
+      - SPONSOR_PRIVATE_KEY
+      - AGENT_DERIVATION_PATH
+    volumes:
+      - /var/run/dstack.sock:/var/run/dstack.sock

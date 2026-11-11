@@ -8,6 +8,7 @@ contracts/factory/res/
 node_modules/
 dist/
 .next/
+next-env.d.ts
 .turbo/
 *.tsbuildinfo
 coverage/
@@ -24,6 +25,7 @@ coverage/
 *.sqlite-journal
 payload*.json
 .submission-request-id
+.submission-done
 
 # Editors / OS
 .vscode/*
@@ -34,3 +36,4 @@ Thumbs.db
 
 /RUNWAY_DESIGN.md
 /BUILD_PLAN.md
+/hackathon.md

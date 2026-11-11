@@ -1,7 +1,8 @@
 name: CI
 
-# Runs on every pull request into main and on every push to main (i.e. after a PR is merged).
-# No secrets are needed: everything runs against a local NEAR sandbox and mock USDC.
+# Fast checks on every pull request into main and every push to main. These are the checks to
+# require in the branch ruleset. The slow sandbox suite lives in sandbox.yml (path-filtered).
+# No secrets are needed.
 on:
   pull_request:
     branches: [main]
@@ -24,9 +25,9 @@ env:
 
 jobs:
   contracts:
-    name: Contracts (wasm build, fmt, clippy, unit + sandbox tests)
+    name: Contracts (wasm build, fmt, clippy, unit tests)
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -51,6 +52,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # The factory embeds the settlement wasm, so clippy and tests need res/ first.
       - name: Build contracts to wasm
         run: bash scripts/build-contracts.sh
 
@@ -60,16 +62,8 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      # Each integration test starts its own nearcore 2.14.0 sandbox (downloaded by near-workspaces).
-      - name: Unit and sandbox integration tests
-        run: cargo test --workspace -- --test-threads=4
-
-      - name: Upload wasm and code hashes
-        uses: actions/upload-artifact@v4
-        with:
-          name: contracts-wasm
-          path: res/
-          retention-days: 14
+      - name: Unit tests (no sandbox)
+        run: cargo test --workspace --exclude runway-integration-tests
 
   typescript:
     name: TypeScript (typecheck, tests, format)
@@ -88,26 +82,3 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test:ts
       - run: pnpm format:check
-
-  sandbox-demo:
-    name: Sandbox demo (full loop, must print DEMO PASSED)
-    needs: contracts
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: contracts-wasm
-          path: res/
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # The demo downloads nearcore 2.14.0 once into ~/.near (see scripts/lib/sandbox-binary.ts).
-      - name: Run the sandbox demo
-        run: pnpm sandbox-demo | tee demo.log && grep -q "DEMO PASSED" demo.log

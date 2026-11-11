@@ -1,3 +1,6 @@
 packages:
   - "packages/*"
+  - "services/*"
+  - "tee/*"
+  - "apps/*"
   - "scripts"

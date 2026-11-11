@@ -3890,6 +3890,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "runway-inr-gateway"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+ "runway-shared",
+]
+
+[[package]]
 name = "runway-integration-tests"
 version = "0.1.0"
 dependencies = [

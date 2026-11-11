@@ -1,6 +1,8 @@
 // Typed views and call builders for the Runway contracts. Transport-agnostic: pass any `Viewer`
 // (dual-RPC `viewAgreed`, near-workspaces in the sandbox, or a wallet provider in the web app).
 
+import type { AgentView } from "./session.js";
+
 export type Viewer = (contract: string, method: string, args: Record<string, unknown>) => Promise<unknown>;
 
 /** Mirrors contracts/credit/src/types.rs JSON (U128/U64 are decimal strings). */
@@ -55,6 +57,41 @@ export interface VaultView {
   active_loans: number;
 }
 
+export interface OfferView {
+  id: string;
+  handle: string;
+  limit: string;
+  fee_bps: number;
+  repay_bps: number;
+  grade: "A" | "B" | "C";
+  anchor_hash: string | null;
+  inputs_commitment: string;
+  llm_receipt_hash: string | null;
+  agent: string;
+  measurements_hash: string;
+  policy_version: number;
+  created_sec: number;
+  expires_at_sec: number;
+  status: "Open" | "Accepted" | "Superseded";
+}
+
+export interface WithdrawRequestView {
+  id: string;
+  owner: string;
+  shares: string;
+  ready_at_sec: number;
+  payout: "Usdc" | "Inr";
+  status: "Open" | "Claiming";
+}
+
+export interface ApprovedView {
+  requires_tee: boolean;
+  attestation_expiration_time_ms: string;
+  measurements: { measurements: unknown; measurements_hash: string; role: string | null }[];
+  ppids: unknown[];
+  whitelisted_agents_for_local: string[];
+}
+
 export interface SettlementState {
   credit: string;
   token: string;
@@ -80,8 +117,17 @@ export function creditViews(view: Viewer, credit: string) {
     loan: (loan_id: string) => view(credit, "get_loan", { loan_id }) as Promise<LoanView | null>,
     vault: () => view(credit, "get_vault", {}) as Promise<VaultView>,
     policy: () => view(credit, "get_policy", {}) as Promise<Record<string, unknown>>,
-    agent: (account_id: string) =>
-      view(credit, "get_agent", { account_id }) as Promise<Record<string, unknown> | null>,
+    agent: (account_id: string) => view(credit, "get_agent", { account_id }) as Promise<AgentView | null>,
+    approved: () => view(credit, "get_approved", {}) as Promise<ApprovedView>,
+    config: () => view(credit, "get_config", {}) as Promise<Record<string, unknown>>,
+    offer: (offer_id: string) => view(credit, "get_offer", { offer_id }) as Promise<OfferView | null>,
+    record: (handle: string) =>
+      view(credit, "get_record", { handle }) as Promise<MerchantView["record"] | null>,
+    activeLoans: () => view(credit, "get_active_loans", {}) as Promise<LoanView[]>,
+    withdrawRequest: (request_id: string) =>
+      view(credit, "get_withdraw_request", { request_id }) as Promise<WithdrawRequestView | null>,
+    shares: (account_id: string) => view(credit, "ft_balance_of", { account_id }) as Promise<string>,
+    exitAppCid: () => view(credit, "get_exit_app_cid", {}) as Promise<string | null>,
     lastOp: (settlement: string) => view(credit, "get_last_op", { settlement }) as Promise<string>,
   };
 }
@@ -107,10 +153,90 @@ export function completeBuckets(buckets: Bucket[], currentBucket: bigint): bigin
   return out;
 }
 
+export type PayoutKind = "merchant_share" | "loan_disbursement" | "lender_withdrawal" | "self_offramp";
+
 /** `ft_on_transfer` message strings (BUILD_PLAN §9.2). */
 export const ftMsg = {
   deposit: () => JSON.stringify({ action: "deposit" }),
   depositFor: (beneficiary: string) => JSON.stringify({ action: "deposit_for", beneficiary }),
   seedReserve: () => JSON.stringify({ action: "seed_reserve" }),
   repay: (loanId: string) => JSON.stringify({ action: "repay", loan_id: loanId }),
+  fundFloat: () => JSON.stringify({ action: "fund_float" }),
+  inrPayout: (kind: PayoutKind, beneficiary: string, reference: string) =>
+    JSON.stringify({ action: "inr_payout", kind, beneficiary, reference }),
 };
+
+// ---------- INR gateway (BUILD_PLAN §9.8) ----------
+
+export type PayinKind =
+  | { type: "merchant_sale"; handle: string }
+  | { type: "lender_deposit"; beneficiary: string }
+  | { type: "repayment"; loan_id: string };
+
+export interface PayinReceipt {
+  kind: PayinKind;
+  inr_paise: string;
+  rate_ppu: number;
+  spread_bps: number;
+  usdc: string;
+  delivered: string;
+  payer_ref_hash: string | null;
+  at_sec: number;
+  status: "Delivering" | "Delivered" | "Failed";
+}
+
+export interface PayoutRequest {
+  id: string;
+  kind: PayoutKind;
+  beneficiary: string;
+  reference: string;
+  usdc: string;
+  inr_paise: string | null;
+  rate_ppu: number | null;
+  utr_hash: string | null;
+  failure_reason: string | null;
+  created_sec: number;
+  status: "Pending" | "Processing" | "Paid" | "Failed";
+}
+
+export interface GatewayLimits {
+  spread_bps: number;
+  min_rate_ppu: number;
+  max_rate_ppu: number;
+  max_payin_paise: string;
+  daily_payin_paise: string;
+  max_payout_usdc: string;
+}
+
+export interface FloatView {
+  free: string;
+  payout_pending: string;
+  refunds_total: string;
+  daily_payin_day: number;
+  daily_payin_paise: string;
+}
+
+export function inrViews(view: Viewer, inr: string) {
+  return {
+    config: () =>
+      view(inr, "get_config", {}) as Promise<{
+        owner: string;
+        credit: string;
+        requires_tee: boolean;
+        paused_payins: boolean;
+      }>,
+    limits: () => view(inr, "get_limits", {}) as Promise<GatewayLimits>,
+    float: () => view(inr, "get_float", {}) as Promise<FloatView>,
+    receipt: (payment_ref_hash: string) =>
+      view(inr, "get_receipt", { payment_ref_hash }) as Promise<PayinReceipt | null>,
+    payinsByHandle: (handle: string, from = "0", limit = 100) =>
+      view(inr, "get_payins_by_handle", { handle, from, limit }) as Promise<[string, PayinReceipt][]>,
+    payout: (payout_id: string) => view(inr, "get_payout", { payout_id }) as Promise<PayoutRequest | null>,
+    pendingPayouts: (from = "0", limit = 100) =>
+      view(inr, "get_pending_payouts", { from, limit }) as Promise<PayoutRequest[]>,
+    beneficiaryBlob: (account_id: string) =>
+      view(inr, "get_beneficiary_blob", { account_id }) as Promise<string | null>,
+    agent: (account_id: string) => view(inr, "get_agent", { account_id }) as Promise<AgentView | null>,
+    approved: () => view(inr, "get_approved", {}) as Promise<ApprovedView>,
+  };
+}

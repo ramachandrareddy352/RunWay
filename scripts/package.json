@@ -5,12 +5,21 @@
   "type": "module",
   "scripts": {
     "sandbox-demo": "tsx sandbox-demo.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "sandbox-demo:inr": "tsx sandbox-demo.ts --inr",
+    "submit-payload": "tsx submit-payload.ts",
+    "print-init": "tsx print-init.ts"
   },
   "dependencies": {
+    "@runway/agent-kit": "workspace:*",
+    "@runway/api": "workspace:*",
     "@runway/config": "workspace:*",
+    "@runway/fx": "workspace:*",
+    "@runway/inr-gateway": "workspace:*",
     "@runway/scoring": "workspace:*",
     "@runway/sdk": "workspace:*",
+    "@runway/underwriter": "workspace:*",
+    "hono": "4.13.14",
     "near-workspaces": "5.0.0"
   },
   "devDependencies": {

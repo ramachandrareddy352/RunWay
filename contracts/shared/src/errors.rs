@@ -46,3 +46,12 @@ pub const ERR_LOCAL_ONLY: &str = "ERR_LOCAL_ONLY";
 pub const ERR_NO_GATEWAY: &str = "ERR_NO_GATEWAY";
 pub const ERR_NOTHING_TO_CLAIM: &str = "ERR_NOTHING_TO_CLAIM";
 pub const ERR_ONE_YOCTO: &str = "ERR_ONE_YOCTO";
+// INR gateway (design §9A.5)
+pub const ERR_PAYIN_REPLAY: &str = "ERR_PAYIN_REPLAY";
+pub const ERR_RATE_BAND: &str = "ERR_RATE_BAND";
+pub const ERR_PAYIN_CAP: &str = "ERR_PAYIN_CAP";
+pub const ERR_FLOAT: &str = "ERR_FLOAT";
+pub const ERR_PAYINS_PAUSED: &str = "ERR_PAYINS_PAUSED";
+pub const ERR_PAYOUT_STATE: &str = "ERR_PAYOUT_STATE";
+pub const ERR_BAD_LIMITS: &str = "ERR_BAD_LIMITS";
+pub const ERR_BLOB_TOO_LARGE: &str = "ERR_BLOB_TOO_LARGE";

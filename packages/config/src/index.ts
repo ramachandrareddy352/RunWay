@@ -1,10 +1,6 @@
 // Network profiles: the single source of truth for scripts, web, API and TEE (BUILD_PLAN §10.1).
 // Money is micro-USDC (bigint, 6 decimals). Contract JSON uses decimal strings.
 
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-
 export type Network = "sandbox" | "testnet" | "mainnet";
 
 export const USDC_DECIMALS = 6;
@@ -16,6 +12,29 @@ export const ONECLICK_BASE_URL = "https://1click.chaindefuser.com";
 
 export const usdc = (whole: number | bigint): bigint => BigInt(whole) * USDC;
 export const yocto = (near: number): bigint => BigInt(Math.round(near * 1e6)) * 10n ** 18n;
+
+/** Contract accounts under a deployment root (BUILD_PLAN §8.2), e.g. `runway-rama.testnet`. */
+export interface Deployment {
+  root: string;
+  credit: string;
+  /** The factory; settlements are `<handle>.<factory>`. */
+  factory: string;
+  /** Mock USDC on sandbox/testnet. */
+  token: string;
+  inr: string;
+}
+
+export function deploymentFor(root: string): Deployment {
+  return {
+    root,
+    credit: `credit.${root}`,
+    factory: `pay.${root}`,
+    token: `musdc.${root}`,
+    inr: `inr.${root}`,
+  };
+}
+
+export const settlementAccount = (handle: string, factory: string): string => `${handle}.${factory}`;
 
 /** Mirrors `Policy` in contracts/credit/src/types.rs. */
 export interface Policy {
@@ -60,7 +79,34 @@ export interface Profile {
   /** Where the underwriter reads routed revenue from. */
   revenueSource: "sandbox-buckets" | "testnet-buckets" | "1click-verified";
   rpcUrls: string[];
+  /** INR gateway limits and float (BUILD_PLAN §10.1). */
+  gateway: GatewayProfile;
 }
+
+/** Mirrors `GatewayLimits` in contracts/inr-gateway/src/types.rs, plus the initial float. */
+export interface GatewayProfile {
+  spreadBps: number;
+  /** Paise per USDC. */
+  minRatePpu: number;
+  maxRatePpu: number;
+  maxPayinPaise: bigint;
+  dailyPayinPaise: bigint;
+  maxPayoutUsdc: bigint;
+  initialFloat: bigint;
+}
+
+const gatewayProfile = (spreadBps: number, initialFloat: bigint): GatewayProfile => ({
+  spreadBps,
+  minRatePpu: 7_000,
+  maxRatePpu: 13_000,
+  maxPayinPaise: 10_000_000n,
+  dailyPayinPaise: 100_000_000n,
+  maxPayoutUsdc: usdc(2_000),
+  initialFloat,
+});
+
+/** The testnet deployment root (Amendment A1). */
+export const TESTNET_ROOT = "runway-rama.testnet";
 
 const SETTLEMENT_BALANCE = yocto(2);
 const TOKEN_STORAGE = 1_250_000_000_000_000_000_000n; // 0.00125 NEAR
@@ -100,6 +146,7 @@ export const profiles: Record<Network, Profile> = {
     time: { periodSec: 3_600, withdrawCooldownSec: 5, offerTtlSec: 600, policyTimelockSec: 0 },
     revenueSource: "sandbox-buckets",
     rpcUrls: [],
+    gateway: gatewayProfile(0, usdc(1_000)),
   },
   testnet: {
     network: "testnet",
@@ -112,6 +159,7 @@ export const profiles: Record<Network, Profile> = {
     policy: basePolicy(SETTLEMENT_BALANCE + TOKEN_STORAGE),
     time: { periodSec: 300, withdrawCooldownSec: 120, offerTtlSec: 3_600, policyTimelockSec: 600 },
     revenueSource: "testnet-buckets",
+    gateway: gatewayProfile(50, usdc(5_000)),
     // Two independent operators (BUILD_PLAN §8.1). Verify availability in T2.1 against
     // https://docs.near.org/api/rpc/providers and replace if either is retired or rate-limited.
     rpcUrls: ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"],
@@ -139,6 +187,12 @@ export const profiles: Record<Network, Profile> = {
       policyTimelockSec: 172_800,
     },
     revenueSource: "1click-verified",
+    gateway: {
+      ...gatewayProfile(50, 0n),
+      maxPayinPaise: 10_000n,
+      dailyPayinPaise: 50_000n,
+      maxPayoutUsdc: usdc(5),
+    },
     rpcUrls: ["https://rpc.mainnet.fastnear.com", "https://rpc.mainnet.near.org"],
   },
 };
@@ -174,11 +228,32 @@ export function timeJson(t: TimeParams): Record<string, number> {
   };
 }
 
+/** Gateway limits as the INR gateway contract's JSON expects them. */
+export function gatewayLimitsJson(g: GatewayProfile): Record<string, unknown> {
+  return {
+    spread_bps: g.spreadBps,
+    min_rate_ppu: g.minRatePpu,
+    max_rate_ppu: g.maxRatePpu,
+    max_payin_paise: String(g.maxPayinPaise),
+    daily_payin_paise: String(g.dailyPayinPaise),
+    max_payout_usdc: String(g.maxPayoutUsdc),
+  };
+}
+
 /** Init arguments for each contract, from a profile (used by deploy scripts and the demo). */
 export function initArgs(
   profile: Profile,
   ids: { owner: string; token: string; credit: string; factory: string },
 ) {
+  const inr = {
+    owner: ids.owner,
+    token: ids.token,
+    credit: ids.credit,
+    factory: ids.factory,
+    limits: gatewayLimitsJson(profile.gateway),
+    requires_tee: profile.requiresTee,
+    attestation_expiration_time_ms: String(profile.attestationExpirationMs),
+  };
   return {
     usdc: { owner: ids.owner },
     factory: {
@@ -198,17 +273,6 @@ export function initArgs(
       requires_tee: profile.requiresTee,
       attestation_expiration_time_ms: String(profile.attestationExpirationMs),
     },
+    inr,
   };
 }
-
-// ---- fixtures generated from the Rust types (contracts/tests: fixtures_are_current) ----
-
-const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
-const readFixture = (name: string): unknown => JSON.parse(readFileSync(join(fixturesDir, name), "utf8"));
-
-/** Shade local-mode mock attestation (`create_mock_dstack_attestation`). */
-export const mockAttestation = (): unknown => readFixture("mock-attestation.json");
-/** All-zero measurements accepted in local mode (`create_mock_full_measurements_hex`). */
-export const mockMeasurements = (): unknown => readFixture("mock-measurements.json");
-/** Default (all-zero) PPID accepted in local mode. */
-export const defaultPpid = (): unknown => readFixture("default-ppid.json");
