@@ -1,0 +1,98 @@
+name: Sandbox
+
+# The slow part (~1 h of runner time): sandbox integration tests and the end-to-end demos on a
+# local nearcore 2.14.0. To save free-tier minutes it runs only when code that affects on-chain
+# behaviour changes, on pushes to main, and on manual dispatch. Don't make these checks required
+# in the branch ruleset: a path-filtered workflow that is skipped never reports a status.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - "packages/**"
+      - "scripts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "pnpm-lock.yaml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/sandbox.yml"
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - "packages/**"
+      - "scripts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "pnpm-lock.yaml"
+      - "rust-toolchain.toml"
+      - ".github/workflows/sandbox.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: sandbox-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NEAR_VERSION: cargo-near-v0.23.0
+  PNPM_VERSION: 10.8.0
+  NODE_VERSION: "22"
+
+jobs:
+  integration:
+    name: Sandbox integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchains
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal -t wasm32-unknown-unknown
+          rustup toolchain install 1.86.0 --profile minimal -t wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      - name: Install cargo-near
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            "https://github.com/near/cargo-near/releases/download/${CARGO_NEAR_VERSION}/cargo-near-installer.sh" | sh
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build contracts to wasm
+        run: bash scripts/build-contracts.sh
+      # Each test starts its own nearcore 2.14.0 sandbox (downloaded by near-workspaces).
+      - name: Sandbox integration tests
+        run: cargo test -p runway-integration-tests -- --test-threads=4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: contracts-wasm
+          path: res/
+          retention-days: 7
+
+  demo:
+    name: Sandbox demos (must print DEMO PASSED)
+    needs: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: contracts-wasm
+          path: res/
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The demo downloads nearcore 2.14.0 once into ~/.near (see scripts/lib/sandbox-binary.ts).
+      - name: Core demo
+        run: pnpm sandbox-demo | tee demo.log && grep -q "DEMO PASSED" demo.log
