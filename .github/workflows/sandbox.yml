@@ -11,6 +11,8 @@ on:
       - "contracts/**"
       - "packages/**"
       - "scripts/**"
+      - "services/**"
+      - "tee/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "pnpm-lock.yaml"
@@ -22,6 +24,8 @@ on:
       - "contracts/**"
       - "packages/**"
       - "scripts/**"
+      - "services/**"
+      - "tee/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "pnpm-lock.yaml"
@@ -94,5 +98,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The demo downloads nearcore 2.14.0 once into ~/.near (see scripts/lib/sandbox-binary.ts).
-      - name: Core demo
-        run: pnpm sandbox-demo | tee demo.log && grep -q "DEMO PASSED" demo.log
+      # X1 + X4: the core loop, then the INR rail (T4b.10) on the same sandbox.
+      - name: Demo (core + INR)
+        run: pnpm sandbox-demo:inr | tee demo.log && grep -q "^DEMO PASSED" demo.log && grep -q "DEMO (INR) PASSED" demo.log

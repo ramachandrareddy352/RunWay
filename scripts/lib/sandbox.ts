@@ -289,3 +289,61 @@ export async function advanceToSec(s: Stack, targetSec: number): Promise<void> {
 export async function advanceSecs(s: Stack, secs: number): Promise<void> {
   await advanceToSec(s, (await nowSec(s)) + secs);
 }
+
+/** T4b.10 step 14: deploy inr-gateway, point credit at it, register a local InrGateway agent and fund 1,000 USDC. */
+export async function deployInrGateway(s: Stack): Promise<{ inr: NearAccount; gwagent: NearAccount }> {
+  const [inr, gwagent] = await Promise.all([
+    s.root.createSubAccount("inr", { initialBalance: 20n * NEAR }),
+    s.root.createSubAccount("gwagent", { initialBalance: 20n * NEAR }),
+  ]);
+  await inr.deploy(wasm("runway_inr_gateway"));
+  const args = initArgs(profile, {
+    owner: s.owner.accountId,
+    token: s.usdc.accountId,
+    credit: s.credit.accountId,
+    factory: s.factory.accountId,
+  });
+  ok(await inr.callRaw(inr, "new", args.inr), "inr.new");
+  await registerUsdc(s, inr.accountId);
+  ok(
+    await s.owner.callRaw(inr, "approve_measurements", { measurements: mockMeasurements() }),
+    "inr.approve_measurements",
+  );
+  ok(await s.owner.callRaw(inr, "approve_ppids", { ppids: [defaultPpid()] }), "inr.approve_ppids");
+  ok(
+    await s.owner.callRaw(inr, "set_role", { measurements: mockMeasurements(), role: "InrGateway" }),
+    "inr.set_role",
+  );
+  ok(
+    await s.owner.callRaw(inr, "whitelist_agent_for_local", { account_id: gwagent.accountId }),
+    "inr.whitelist",
+  );
+  ok(
+    await gwagent.callRaw(
+      inr,
+      "register_agent",
+      { attestation: mockAttestation() },
+      { attachedDeposit: NEAR / 100n, gas: 100n * TGAS },
+    ),
+    "inr.register_agent",
+  );
+  ok(
+    await s.owner.callRaw(s.credit, "set_inr_gateway", { account_id: inr.accountId }),
+    "credit.set_inr_gateway",
+  );
+  await mint(s, s.owner.accountId, profile.gateway.initialFloat);
+  ok(
+    await s.owner.callRaw(
+      s.usdc,
+      "ft_transfer_call",
+      {
+        receiver_id: inr.accountId,
+        amount: String(profile.gateway.initialFloat),
+        msg: JSON.stringify({ action: "fund_float" }),
+      },
+      { attachedDeposit: ONE_YOCTO, gas: 150n * TGAS },
+    ),
+    "fund float",
+  );
+  return { inr, gwagent };
+}

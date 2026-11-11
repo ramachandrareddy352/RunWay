@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && pnpm format:check && pnpm typecheck",
-    "sandbox-demo": "pnpm --filter @runway/scripts sandbox-demo"
+    "sandbox-demo": "pnpm --filter @runway/scripts sandbox-demo",
+    "sandbox-demo:inr": "pnpm --filter @runway/scripts sandbox-demo:inr"
   },
   "devDependencies": {
     "prettier": "3.9.10",

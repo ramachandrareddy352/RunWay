@@ -112,15 +112,33 @@ importers:
 
   scripts:
     dependencies:
+      '@runway/agent-kit':
+        specifier: workspace:*
+        version: link:../packages/agent-kit
+      '@runway/api':
+        specifier: workspace:*
+        version: link:../services/api
       '@runway/config':
         specifier: workspace:*
         version: link:../packages/config
+      '@runway/fx':
+        specifier: workspace:*
+        version: link:../packages/fx
+      '@runway/inr-gateway':
+        specifier: workspace:*
+        version: link:../tee/inr-gateway
       '@runway/scoring':
         specifier: workspace:*
         version: link:../packages/scoring
       '@runway/sdk':
         specifier: workspace:*
         version: link:../packages/sdk
+      '@runway/underwriter':
+        specifier: workspace:*
+        version: link:../tee/underwriter
+      hono:
+        specifier: 4.13.14
+        version: 4.13.14
       near-workspaces:
         specifier: 5.0.0
         version: 5.0.0

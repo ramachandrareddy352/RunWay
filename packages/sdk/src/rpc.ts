@@ -29,6 +29,8 @@ export interface RpcOptions {
   fetch?: Fetch;
   /** Read at this block on every RPC (from `agreedHeight`), so several reads see one state. */
   blockId?: number;
+  /** Sandbox only: its final head stalls during fast-forward (SPIKES SP2). Default "final". */
+  finality?: "final" | "optimistic";
 }
 
 interface JsonRpcResponse<T> {
@@ -54,8 +56,8 @@ async function rpc<T>(url: string, method: string, params: unknown, f: Fetch): P
 
 const fetchImpl = (o: RpcOptions): Fetch => o.fetch ?? (globalThis.fetch as unknown as Fetch);
 
-async function finalHeight(url: string, f: Fetch): Promise<number> {
-  const b = await rpc<{ header: { height: number } }>(url, "block", { finality: "final" }, f);
+async function finalHeight(url: string, f: Fetch, finality = "final"): Promise<number> {
+  const b = await rpc<{ header: { height: number } }>(url, "block", { finality }, f);
   return b.header.height;
 }
 
@@ -63,7 +65,7 @@ async function finalHeight(url: string, f: Fetch): Promise<number> {
 export async function agreedHeight(o: RpcOptions): Promise<number> {
   const f = fetchImpl(o);
   if (o.rpcs.length === 0) throw new Error("no RPC configured");
-  return Math.min(...(await Promise.all(o.rpcs.map((u) => finalHeight(u, f)))));
+  return Math.min(...(await Promise.all(o.rpcs.map((u) => finalHeight(u, f, o.finality)))));
 }
 
 /** Runs `query` on every RPC at the lowest common final block and requires identical results. */
@@ -72,7 +74,7 @@ export async function queryAgreed<T>(params: Record<string, unknown>, o: RpcOpti
   if (o.rpcs.length === 0) throw new Error("no RPC configured");
   const agree = o.requireAgreement ?? o.rpcs.length > 1;
   if (!agree) {
-    const at = o.blockId === undefined ? { finality: "final" } : { block_id: o.blockId };
+    const at = o.blockId === undefined ? { finality: o.finality ?? "final" } : { block_id: o.blockId };
     return rpc<T>(o.rpcs[0]!, "query", { ...at, ...params }, f);
   }
   const block_id = o.blockId ?? (await agreedHeight(o));

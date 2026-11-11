@@ -1,6 +1,6 @@
 # Run inside WSL/Linux. Every target maps to a pnpm script or cargo command, so Windows users can
 # run the same thing with `pnpm <script>` from WSL.
-.PHONY: setup build test test-contracts test-ts sandbox-demo lint fmt fixtures
+.PHONY: setup build test test-contracts test-ts sandbox-demo sandbox-demo-inr lint fmt fixtures
 
 setup:
 	pnpm install
@@ -18,6 +18,10 @@ test-ts:
 
 sandbox-demo: build
 	pnpm sandbox-demo
+
+# The core demo followed by the INR rail steps 14-18 (BUILD_PLAN T4b.10).
+sandbox-demo-inr: build
+	pnpm sandbox-demo:inr
 
 lint:
 	pnpm lint
