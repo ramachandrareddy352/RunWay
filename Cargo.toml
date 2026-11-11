@@ -1,0 +1,39 @@
+[workspace]
+resolver = "3"
+members = [
+    "contracts/shared",
+    "contracts/mock-usdc",
+    "contracts/settlement",
+    "contracts/factory",
+    "contracts/credit",
+    "contracts/stub-gateway",
+    "contracts/tests",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.86"
+license = "MIT"
+repository = "https://github.com/ramachandrareddy352/RunWay"
+
+[workspace.dependencies]
+# SP1: shade-attestation 0.2.0 pins serde_with =3.17.0; near-sdk >= 5.30 needs serde_with ^3.20.
+# 5.26.1 is the version the Shade contract template pins, so the whole workspace uses it.
+near-sdk = "=5.26.1"
+near-contract-standards = "=5.26.1"
+shade-attestation = "=0.2.0"
+hex = "0.4.3"
+near-workspaces = "0.24.0"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+serde_json = "1"
+runway-shared = { path = "contracts/shared" }
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+debug = false
+panic = "abort"
+overflow-checks = true

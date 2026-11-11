@@ -1,0 +1,8 @@
+target/
+res/
+node_modules/
+pnpm-lock.yaml
+Cargo.lock
+*.md
+contracts/
+packages/config/fixtures/

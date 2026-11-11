@@ -1,0 +1,36 @@
+# Rust / NEAR
+target/
+res/
+contracts/factory/res/
+**/*.rs.bk
+
+# Node
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+# Env and secrets (never commit)
+.env
+.env.*
+!.env.example
+.near-credentials/
+**/neardev/
+
+# Local data and payloads
+*.sqlite
+*.sqlite-journal
+payload*.json
+.submission-request-id
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+/RUNWAY_DESIGN.md
+/BUILD_PLAN.md

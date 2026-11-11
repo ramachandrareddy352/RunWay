@@ -1,0 +1,113 @@
+name: CI
+
+# Runs on every pull request into main and on every push to main (i.e. after a PR is merged).
+# No secrets are needed: everything runs against a local NEAR sandbox and mock USDC.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NEAR_VERSION: cargo-near-v0.23.0
+  PNPM_VERSION: 10.8.0
+  NODE_VERSION: "22"
+
+jobs:
+  contracts:
+    name: Contracts (wasm build, fmt, clippy, unit + sandbox tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      # rust-toolchain.toml pins 1.95.0 for native builds/tests; wasm is built with 1.86.0
+      # because near-sdk 5.26.1 (pinned for shade-attestation) targets that VM (see docs/SPIKES.md).
+      - name: Install Rust toolchains
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal -c rustfmt -c clippy -t wasm32-unknown-unknown
+          rustup toolchain install 1.86.0 --profile minimal -t wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install cargo-near
+        run: |
+          curl --proto '=https' --tlsv1.2 -LsSf \
+            "https://github.com/near/cargo-near/releases/download/${CARGO_NEAR_VERSION}/cargo-near-installer.sh" | sh
+          cargo near --version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build contracts to wasm
+        run: bash scripts/build-contracts.sh
+
+      - name: Check formatting
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # Each integration test starts its own nearcore 2.14.0 sandbox (downloaded by near-workspaces).
+      - name: Unit and sandbox integration tests
+        run: cargo test --workspace -- --test-threads=4
+
+      - name: Upload wasm and code hashes
+        uses: actions/upload-artifact@v4
+        with:
+          name: contracts-wasm
+          path: res/
+          retention-days: 14
+
+  typescript:
+    name: TypeScript (typecheck, tests, format)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test:ts
+      - run: pnpm format:check
+
+  sandbox-demo:
+    name: Sandbox demo (full loop, must print DEMO PASSED)
+    needs: contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: contracts-wasm
+          path: res/
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The demo downloads nearcore 2.14.0 once into ~/.near (see scripts/lib/sandbox-binary.ts).
+      - name: Run the sandbox demo
+        run: pnpm sandbox-demo | tee demo.log && grep -q "DEMO PASSED" demo.log
