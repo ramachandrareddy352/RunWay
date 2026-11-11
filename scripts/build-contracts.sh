@@ -25,6 +25,7 @@ build mock-usdc res
 build factory res
 build credit res
 build stub-gateway res
+build inr-gateway res
 
 if [[ "${1:-}" != "--release-only" ]]; then
   # Test-hooks variants (factory embeds res/test/runway_settlement.wasm when built with test-hooks).

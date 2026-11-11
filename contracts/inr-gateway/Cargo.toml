@@ -1,0 +1,18 @@
+[package]
+name = "runway-inr-gateway"
+description = "Runway INR gateway: converts attested UPI pay-ins to USDC and pays rupee payouts from a USDC float"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+runway-shared = { workspace = true, features = ["agents"] }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

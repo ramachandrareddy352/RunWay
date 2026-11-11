@@ -104,6 +104,21 @@ pub fn policy() -> Value {
     })
 }
 
+/// Sandbox gateway limits (BUILD_PLAN §10.1): no spread, ₹70–₹130 band, ₹1,00,000 per payment.
+pub fn gateway_limits(max_payout_whole: u128) -> Value {
+    json!({
+        "spread_bps": 0, "min_rate_ppu": 7_000, "max_rate_ppu": 13_000,
+        "max_payin_paise": "10000000", "daily_payin_paise": "100000000",
+        "max_payout_usdc": usdc(max_payout_whole),
+    })
+}
+
+/// The real INR gateway and its local agent (role `InrGateway`).
+pub struct Inr {
+    pub contract: Contract,
+    pub agent: Account,
+}
+
 pub fn mock_measurements() -> Value {
     serde_json::to_value(create_mock_full_measurements_hex()).expect("serialize")
 }
@@ -604,6 +619,148 @@ impl Env {
         let m = self.merchant(handle).await?;
         let loan = u(&m["merchant"]["active_loan"]) as u64;
         Ok((settlement, loan))
+    }
+
+    // ---------- INR gateway (T4b.2) ----------
+
+    /// Deploys the real INR gateway at `inr.<root>` with sandbox limits (`requires_tee = false`),
+    /// registers a local agent with role `InrGateway`, points credit at it and funds a
+    /// 1,000 USDC float.
+    pub async fn deploy_inr_gateway(&self) -> Result<Inr> {
+        let root = self.worker.root_account()?;
+        let acc = sub(&root, "inr", 20).await?;
+        let agent = sub(&root, "gwagent", 20).await?;
+        let contract = acc
+            .deploy(&wasm("runway_inr_gateway", false)?)
+            .await?
+            .into_result()?;
+        ok(contract
+            .call("new")
+            .args_json(json!({
+                "owner": self.owner.id(), "token": self.usdc.id(), "credit": self.credit.id(),
+                "factory": self.factory.id(), "limits": gateway_limits(2_000),
+                "requires_tee": false, "attestation_expiration_time_ms": "86400000",
+            }))
+            .transact()
+            .await?)?;
+        let g = contract.id();
+        self.register_usdc(&self.owner, g).await?;
+        for (method, args) in [
+            (
+                "approve_measurements",
+                json!({ "measurements": mock_measurements() }),
+            ),
+            ("approve_ppids", json!({ "ppids": [default_ppid()] })),
+            (
+                "set_role",
+                json!({ "measurements": mock_measurements(), "role": "InrGateway" }),
+            ),
+            (
+                "whitelist_agent_for_local",
+                json!({ "account_id": agent.id() }),
+            ),
+        ] {
+            ok(self
+                .call(&self.owner, g, method, args, NO_DEPOSIT, 30)
+                .await?)?;
+        }
+        ok(self
+            .call(
+                &agent,
+                g,
+                "register_agent",
+                json!({ "attestation": mock_attestation() }),
+                NearToken::from_millinear(10),
+                100,
+            )
+            .await?)?;
+        ok(self
+            .call(
+                &self.owner,
+                self.credit.id(),
+                "set_inr_gateway",
+                json!({ "account_id": g }),
+                NO_DEPOSIT,
+                30,
+            )
+            .await?)?;
+        self.mint(self.owner.id(), 1_000).await?;
+        ok(self
+            .call(&self.owner, self.usdc.id(), "ft_transfer_call",
+                  json!({ "receiver_id": g, "amount": usdc(1_000), "msg": r#"{"action":"fund_float"}"# }),
+                  ONE_YOCTO, 150)
+            .await?)?;
+        Ok(Inr { contract, agent })
+    }
+
+    /// The gateway agent reports a confirmed UPI payment. `ref_byte` makes the payment hash.
+    pub async fn record_payin(
+        &self,
+        inr: &Inr,
+        ref_byte: u8,
+        kind: Value,
+        paise: u128,
+        rate_ppu: u32,
+    ) -> Result<ExecutionFinalResult> {
+        self.call(
+            &inr.agent,
+            inr.contract.id(),
+            "record_payin",
+            json!({
+                "payment_ref_hash": b58_hash(ref_byte), "kind": kind, "inr_paise": paise.to_string(),
+                "rate_ppu": rate_ppu, "payer_ref_hash": b58_hash(200),
+            }),
+            NO_DEPOSIT,
+            150,
+        )
+        .await
+    }
+
+    pub async fn receipt(&self, inr: &Inr, ref_byte: u8) -> Result<Value> {
+        self.view(
+            inr.contract.id(),
+            "get_receipt",
+            json!({ "payment_ref_hash": b58_hash(ref_byte) }),
+        )
+        .await
+    }
+
+    pub async fn float(&self, inr: &Inr) -> Result<Value> {
+        self.view(inr.contract.id(), "get_float", json!({})).await
+    }
+
+    pub async fn payout(&self, inr: &Inr, id: u64) -> Result<Value> {
+        self.view(
+            inr.contract.id(),
+            "get_payout",
+            json!({ "payout_id": id.to_string() }),
+        )
+        .await
+    }
+
+    pub async fn set_gateway_max_payout(&self, inr: &Inr, whole: u128) -> Result<()> {
+        ok(self
+            .call(
+                &self.owner,
+                inr.contract.id(),
+                "set_limits",
+                json!({ "limits": gateway_limits(whole) }),
+                NO_DEPOSIT,
+                30,
+            )
+            .await?)?;
+        Ok(())
+    }
+
+    /// I8: the gateway holds at least its free float, pending payouts and claimable refunds.
+    pub async fn assert_inr_invariant(&self, inr: &Inr) -> Result<()> {
+        let f = self.float(inr).await?;
+        let owed = u(&f["free"]) + u(&f["payout_pending"]) + u(&f["refunds_total"]);
+        let bal = self.balance(inr.contract.id()).await?;
+        if bal < owed {
+            bail!("I8 violated: gateway balance {bal} < free + pending + refunds {owed} ({f})");
+        }
+        Ok(())
     }
 
     // ---------- invariants (design sec. 15.2) ----------
