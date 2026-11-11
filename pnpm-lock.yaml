@@ -27,6 +27,21 @@ importers:
         specifier: 5.1.0
         version: 5.1.0(@types/node@22.19.1)(vite@8.3.8(@types/node@22.19.1)(esbuild@0.28.2)(tsx@4.23.15))
 
+  packages/fx:
+    devDependencies:
+      '@types/node':
+        specifier: 22.19.1
+        version: 22.19.1
+      fast-check:
+        specifier: 4.10.2
+        version: 4.10.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@22.19.1)(vite@8.3.8(@types/node@22.19.1)(esbuild@0.28.2)(tsx@4.23.15))
+
   packages/scoring:
     devDependencies:
       '@types/node':
