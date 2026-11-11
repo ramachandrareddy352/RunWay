@@ -6,7 +6,9 @@
   "scripts": {
     "sandbox-demo": "tsx sandbox-demo.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "sandbox-demo:inr": "tsx sandbox-demo.ts --inr"
+    "sandbox-demo:inr": "tsx sandbox-demo.ts --inr",
+    "submit-payload": "tsx submit-payload.ts",
+    "print-init": "tsx print-init.ts"
   },
   "dependencies": {
     "@runway/agent-kit": "workspace:*",

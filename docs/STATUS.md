@@ -42,6 +42,71 @@ Sandbox timing: this WSL2 VM produces a block every 1.5–3.5 s of wall time, an
 - Unit (no chain): S5 (stale callbacks), S10 (ring buffer), V1 (cumulative principal with dust), V3/V4 (default + capped recovery), V5 (late roll), V6 (inflation), V7, V12, V13, C4, C5, C7, C8, C10, C11, C12.
 - Not automated yet: S6 (a deposit landing between `ft_balance_of` and the transfer can't be interleaved deterministically in the sandbox; covered by construction, since new inflow = balance − pendings), S7 (raw buckets include self-transfers by design; verified revenue comes from 1Click/INR receipts in Step 2/4b), S9 (late receipt after a lock timeout), C3 (callbacks for older loans; status checks are covered in unit tests).
 
-## Step 2 onward
+## Step 2: Payments (testnet, simulated settlement)
 
-Not started. See BUILD_PLAN.
+- [x] T2.0 SP5: not run (Amendment A1). SP16 replaces it: dry quotes only on testnet.
+- [x] T2.1 `@runway/sdk` 1Click client and `verifyQuote` / `verifyDeposit` (SD4–SD6)
+- [x] T2.2 `apps/web` and `/pay/[handle]`: dual-RPC merchant lookup, asset picker with chain minimums, refund-address validation, browser-side 1Click quote with the live checklist, 7-status timeline, SIMULATED testnet payment (W1–W3)
+- [x] T2.3 `services/api`: payment log, keeper, `/dev/simulate-payment` (A1–A4)
+- [ ] T2.4 Testnet deployment: deferred until the human says go (Amendment A1). `scripts/print-init.ts` exists; `scripts/deploy-testnet.ts` is not written yet.
+- [x] T2.5 removed (Amendment A1)
+- [x] Gate G2 (sandbox): SD4–SD6, A1–A4, W1–W3 pass; the simulated payment → keeper → settle flow passes in `make sandbox-demo`.
+
+## Step 3: TEE underwriter (local mode)
+
+- [x] T3.1 `tee/underwriter` (Dockerfile, deployment.yaml, endpoints hardcoded per network, secrets-only env). The Shade template wasn't copied: `@neardefi/shade-agent-js` 2.2.0 is used directly (`packages/agent-kit/src/boot.ts`). `deployment.yaml` uses the keys `shade` CLI 2.4.0 parses (checked in its `config.js`), with every TEE step disabled.
+- [x] T3.2 Boot, registration, session key rotation; browser-side `checkSession` (E1, E2)
+- [x] T3.3 `/underwrite` pipeline (E3–E7)
+- [ ] T3.4 Local deploy with the Shade CLI: deferred with T2.4. The TEE half needs free Phala credits and the human's go-ahead.
+- [x] T3.5 `/verify` page
+- [ ] Gate G3: E1–E7 pass. "A real TEE agent on testnet" waits for T3.4; the same flow passes on the sandbox (`make sandbox-demo` requests both offers through the sealed pipeline).
+
+## Step 4: Evidence
+
+- [x] T4.0 SP6 (deferred: needs the human's Stripe key), SP7 (deferred: needs Phala), SP8 (**passed live** against NEAR AI Cloud)
+- [x] T4.1 Stripe anchor (E8–E10)
+- [x] T4.2 NEAR AI attestation verification (E11–E13)
+- [x] T4.3 Statement extraction, signature check and receipt hash (E14, E15)
+- [ ] Gate G4: E8–E15 pass. The "/audit shows anchor ✔ and statement ✔" part needs a deployment, a Stripe test key and a NEAR AI key.
+
+## Step 4b: INR rail
+
+- [x] T4b.0 SP11–SP15 recorded (SP13 checked live)
+- [x] T4b.1 `contracts/inr-gateway` (23 unit tests)
+- [x] T4b.2 Sandbox tests G1–G13, I8; C13, C14, V13, V14 against the real gateway (`contracts/tests/tests/inr.rs`, 3 tests, 1,123 s)
+- [x] T4b.3 `@runway/fx` (SC5, E19, E25) and the Indian-exchange sources
+- [x] T4b.4–T4b.7 `tee/inr-gateway`: providers, collects, pay-ins, payouts, beneficiaries (E16–E18, E20–E24)
+- [x] T4b.8 Underwriter INR receipts and Razorpay anchor (E26, E27)
+- [x] T4b.9 Web: UPI tab, ₹ deposit/withdraw, settings, INR audit tables (W10–W12)
+- [x] T4b.10 `make sandbox-demo-inr` (X4): `DEMO (INR) PASSED`
+- [ ] T4b.11 Deploy: deferred (Amendment A1)
+- [ ] Gate G4b: all listed tests and X4 pass; the recorded testnet runs wait for deployment.
+
+## Step 5: Product surfaces
+
+- [x] T5.1 Wallets (wallet-selector 10.1.4: Meteor, MyNearWallet, HOT, Intear); W4 is a manual checklist
+- [x] T5.2 `/merchant`; T5.3 `/merchant/capital`; T5.4 `/lend`; T5.5 `/audit`, `/audit/offer/[id]` (W5–W8: manual checklists in docs/RELEASE_CHECK.md)
+- [x] T5.6 `apps/exit` → single-file `exit.html` (W9 manual). IPFS pinning and `set_exit_app_cid` wait for deployment and the human's pinning credentials.
+- [ ] Gate G5: the recorded UI-only testnet run waits for deployment.
+
+## Step 6: Ship
+
+- [x] T6.1 README rewritten to the T6.1 outline
+- [ ] T6.2 Fresh-clone check: the procedure is in docs/RELEASE_CHECK.md; not yet run in a clean WSL user
+- [x] T6.3 Video script and click checklist (docs/VIDEO.md); the human records it
+- [x] T6.4 X post draft (docs/X_POST.md); the human posts it
+- [x] T6.5 `scripts/submit-payload.ts`: validates, prints, waits for "yes", never submits twice. Not run.
+
+## Local results (2026-11-11, round 2)
+
+| Check | Result |
+| --- | --- |
+| Contract unit tests | all pass (credit 19, inr-gateway 23, settlement 6, mock-usdc 2, shared 2) |
+| INR sandbox tests (`tests/inr.rs`) | 3 passed in 1,123 s |
+| `make sandbox-demo-inr` | `DEMO PASSED` and `DEMO (INR) PASSED` in 374 s |
+| TypeScript | sdk 27 (+1 live test skipped), fx 16, scoring 19, config 2, api 8, underwriter 20, inr-gateway 17, web 13 (W1–W3, W10–W12) |
+| Typecheck, Prettier, cargo fmt, clippy | clean |
+
+Found by W1: the quote checklist echoed the deposit address in its detail text even when other checks failed, so a payer could copy an address from a tampered quote. `verifyQuote` now reports only "present"; the address appears only after every check and the status re-read pass.
+
+The web tests run on happy-dom with thread workers: jsdom 31 (which loads a native canvas module) timed out starting workers over the WSL `/mnt/c` mount.
