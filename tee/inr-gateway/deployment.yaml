@@ -1,5 +1,7 @@
-# Shade CLI configuration for the INR gateway (BUILD_PLAN T4b.4, runbook §8.5). Local mode until a
-# TEE deployment is approved (Amendment A1).
+# Shade CLI 2.4 configuration (keys checked against @neardefi/shade-agent-cli 2.4.0 src/utils/config.js).
+# Local mode until a TEE deployment is approved (Amendment A1): no image build, no Phala deploy.
+# The contract is deployed by the runbook (BUILD_PLAN §8.2/§8.5), and the owner approves measurements
+# and assigns the role itself (set_role is a Runway addition), so those CLI steps are off.
 environment: local # local | TEE
 network: testnet
 docker_compose_path: ./docker-compose.yaml
@@ -7,6 +9,14 @@ agent_contract:
   contract_id: inr.runway-rama.testnet
   deploy_custom:
     enabled: false
-tee_config:
-  phala:
-    enabled: false
+build_docker_image:
+  enabled: false # TEE only; build from the repo root: docker build -f tee/inr-gateway/Dockerfile .
+  tag: runway-inr-gateway:testnet
+  cache: true
+  dockerfile_path: ./Dockerfile
+approve_measurements:
+  enabled: false
+deploy_to_phala:
+  enabled: false # only with free Phala credits and the human's go-ahead
+  app_name: runway-inr-gateway
+  env_file_path: ./.env

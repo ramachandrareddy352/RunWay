@@ -237,5 +237,6 @@ export function inrViews(view: Viewer, inr: string) {
     beneficiaryBlob: (account_id: string) =>
       view(inr, "get_beneficiary_blob", { account_id }) as Promise<string | null>,
     agent: (account_id: string) => view(inr, "get_agent", { account_id }) as Promise<AgentView | null>,
+    approved: () => view(inr, "get_approved", {}) as Promise<ApprovedView>,
   };
 }

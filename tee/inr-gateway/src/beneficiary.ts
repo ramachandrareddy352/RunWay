@@ -3,15 +3,21 @@
 // account being registered. The UPI ID or bank details go to the provider only; on-chain there is
 // just an encrypted blob with the provider's fund-account id and a masked label.
 import { TGAS, type AgentSigner, type Logger, type SessionKeys } from "@runway/agent-kit";
-import { openJson, verifyNep413, type RpcOptions, type Sealed, type SignedMessage } from "@runway/sdk";
+import {
+  openJson,
+  verifyNep413,
+  type RpcOptions,
+  type Sealed,
+  type SignedMessage,
+  BENEFICIARY_CONTEXT,
+  beneficiaryMessage,
+  GATEWAY_RECIPIENT,
+} from "@runway/sdk";
 import { z } from "zod";
 import { sealBlob } from "./blob.js";
 import type { BeneficiaryDetails, InrProvider } from "./providers/types.js";
 
-export const BENEFICIARY_CONTEXT = "runway-beneficiary";
-export const GATEWAY_RECIPIENT = "runway-inr-gateway";
-export const beneficiaryMessage = (accountId: string) =>
-  JSON.stringify({ action: "register_beneficiary", account_id: accountId });
+export { BENEFICIARY_CONTEXT, beneficiaryMessage, GATEWAY_RECIPIENT };
 
 export const VPA = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
 export const IFSC = /^[A-Z]{4}0[A-Z0-9]{6}$/;

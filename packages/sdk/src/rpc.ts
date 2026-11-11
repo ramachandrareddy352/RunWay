@@ -129,3 +129,22 @@ export async function viewAccessKey(
     o,
   );
 }
+
+export interface AccountView {
+  amount: string;
+  code_hash: string;
+  storage_usage: number;
+}
+
+/** `view_account` with dual-RPC agreement (code hash of a settlement account, /audit). */
+export const viewAccount = (accountId: string, o: RpcOptions): Promise<AccountView> =>
+  queryAgreed<AccountView>({ request_type: "view_account", account_id: accountId }, o);
+
+/** Number of access keys on an account (settlement accounts must have zero). */
+export async function accessKeyCount(accountId: string, o: RpcOptions): Promise<number> {
+  const r = await queryAgreed<{ keys: unknown[] }>(
+    { request_type: "view_access_key_list", account_id: accountId },
+    o,
+  );
+  return r.keys.length;
+}

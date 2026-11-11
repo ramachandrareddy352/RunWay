@@ -3,15 +3,17 @@
 //   within 5 minutes and single use, the key is a FullAccess key of the account on BOTH RPCs, and the
 //   account is the merchant's on-chain payout account.
 import { NonceCache } from "@runway/agent-kit";
-import { verifyNep413, type RpcOptions, type SignedMessage } from "@runway/sdk";
+import {
+  underwriteMessage,
+  UNDERWRITE_RECIPIENT,
+  verifyNep413,
+  type RpcOptions,
+  type SignedMessage,
+} from "@runway/sdk";
 
-export { NonceCache };
+export { NonceCache, underwriteMessage, UNDERWRITE_RECIPIENT };
 
-export const UNDERWRITE_RECIPIENT = "runway-underwriter";
 export const NONCE_MAX_AGE_MS = 5 * 60_000;
-
-/** The exact message a merchant signs to ask for an offer. */
-export const underwriteMessage = (handle: string): string => JSON.stringify({ action: "underwrite", handle });
 
 export type AuthResult = { ok: true } | { ok: false; reason: string };
 

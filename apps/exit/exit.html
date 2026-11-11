@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Runway exit</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f7f7f5;
+        --panel: #fff;
+        --fg: #161615;
+        --subtle: #5b5a56;
+        --line: #e2e1dc;
+        --accent: #1f5fb0;
+        --bad: #b42318;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:where(:not([data-theme="light"])) {
+          color-scheme: dark;
+          --bg: #121211;
+          --panel: #1a1a19;
+          --fg: #f0efec;
+          --subtle: #b3b2a8;
+          --line: #2e2e2b;
+          --accent: #5b9cf0;
+          --bad: #f07467;
+        }
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #121211;
+        --panel: #1a1a19;
+        --fg: #f0efec;
+        --subtle: #b3b2a8;
+        --line: #2e2e2b;
+        --accent: #5b9cf0;
+        --bad: #f07467;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          15px/1.45 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      section {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 14px;
+        margin: 12px 0;
+      }
+      h1 {
+        font-size: 20px;
+        margin: 8px 0;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 0 0 8px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        margin: 6px 0 2px;
+      }
+      input {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          13px ui-monospace,
+          monospace;
+      }
+      button {
+        margin: 8px 8px 0 0;
+        padding: 7px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: transparent;
+        color: var(--fg);
+        border-color: var(--line);
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        font:
+          12px ui-monospace,
+          monospace;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        max-height: 320px;
+        overflow: auto;
+      }
+      .note {
+        color: var(--subtle);
+        font-size: 13px;
+      }
+      .err {
+        color: var(--bad);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Runway exit</h1>
+      <p class="note">
+        A single static file with no backend. It talks to the NEAR RPC you choose and your own wallet, so you
+        can still settle payments, claim payouts and withdrawals, and check loans if every Runway server is
+        gone.
+      </p>
+      <section>
+        <h2>Network</h2>
+        <label for="rpc">RPC URL</label>
+        <input id="rpc" />
+        <label for="credit">Credit contract</label>
+        <input id="credit" />
+        <div id="wallet"></div>
+      </section>
+      <section>
+        <h2>Merchant</h2>
+        <label for="handle">Handle</label>
+        <input id="handle" placeholder="priya" />
+        <button id="view-merchant" class="secondary">View</button>
+        <button id="settle">settle()</button>
+        <button id="claim-payout">claim_payout()</button>
+      </section>
+      <section>
+        <h2>Loan</h2>
+        <label for="loan">Loan id</label>
+        <input id="loan" />
+        <button id="view-loan" class="secondary">View</button>
+        <button id="check-loan">check_loan()</button>
+      </section>
+      <section>
+        <h2>Withdrawal</h2>
+        <label for="request">Request id</label>
+        <input id="request" />
+        <button id="view-request" class="secondary">View</button>
+        <button id="claim-withdraw">claim_withdraw()</button>
+        <button id="cancel-withdraw" class="secondary">cancel_withdraw()</button>
+        <button id="view-vault" class="secondary">Vault</button>
+      </section>
+      <pre id="out" aria-live="polite">Ready.</pre>
+    </main>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

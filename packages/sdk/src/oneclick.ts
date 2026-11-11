@@ -241,7 +241,7 @@ export function verifyQuote(q: unknown, e: Expected): VerifyReport {
     );
     checks.push(
       quote.depositAddress
-        ? pass("depositAddress", quote.depositAddress)
+        ? pass("depositAddress", "present") // never echo the address: it is shown only after every check passes
         : fail("depositAddress", "no deposit address"),
     );
   }

@@ -1,13 +1,21 @@
 // HTTP surface of the underwriter (BUILD_PLAN §9.7): GET /session, POST /underwrite, GET /health.
-import { fromBase64, MAX_SEALED_BYTES, openJson, RpcDisagreement, sealJson, type Sealed } from "@runway/sdk";
+import {
+  fromBase64,
+  MAX_SEALED_BYTES,
+  openJson,
+  RpcDisagreement,
+  sealJson,
+  type Sealed,
+  UNDERWRITE_CONTEXT,
+  UNDERWRITE_RESPONSE_CONTEXT,
+} from "@runway/sdk";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { errorCode, type SessionKeys } from "@runway/agent-kit";
 import { RequestRejected, underwrite, type UnderwriteDeps, type UnderwriteRequest } from "./underwrite.js";
 
-export const UNDERWRITE_CONTEXT = "runway-underwrite";
-export const UNDERWRITE_RESPONSE_CONTEXT = "runway-underwrite-response";
+export { UNDERWRITE_CONTEXT, UNDERWRITE_RESPONSE_CONTEXT };
 
 const SealedSchema = z
   .object({

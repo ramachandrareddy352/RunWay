@@ -23,10 +23,15 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
       "esbuild",
       "near-sandbox",
       "near-workspaces",
-      "secp256k1"
-    ]
+      "secp256k1",
+      "sharp"
+    ],
+    "overrides": {
+      "@near-wallet-selector/react-hook>react": "19.3.1"
+    }
   }
 }
