@@ -1,0 +1,23 @@
+[package]
+name = "runway-credit"
+description = "Runway credit contract: USDC vault (runUSDC shares), attested offers, loan state machine, settlement router"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Failure injection for integration tests only. Never enabled in deployed builds.
+test-hooks = []
+
+[dependencies]
+near-sdk = { workspace = true }
+near-contract-standards = { workspace = true }
+runway-shared = { workspace = true, features = ["agents"] }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

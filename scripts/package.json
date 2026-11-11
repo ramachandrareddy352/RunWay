@@ -1,0 +1,21 @@
+{
+  "name": "@runway/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sandbox-demo": "tsx sandbox-demo.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@runway/config": "workspace:*",
+    "@runway/scoring": "workspace:*",
+    "@runway/sdk": "workspace:*",
+    "near-workspaces": "5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

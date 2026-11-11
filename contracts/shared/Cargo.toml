@@ -1,0 +1,24 @@
+[package]
+name = "runway-shared"
+description = "Shared types, messages, constants and the Shade-compatible agent registry for Runway contracts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["rlib"]
+
+[features]
+default = []
+# Shade-compatible TEE agent registry (pulls in shade-attestation / dcap-qvl).
+agents = ["dep:shade-attestation", "dep:hex"]
+
+[dependencies]
+near-sdk = { workspace = true }
+shade-attestation = { workspace = true, optional = true }
+hex = { workspace = true, optional = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }

@@ -1,0 +1,31 @@
+{
+  "name": "runway",
+  "private": true,
+  "packageManager": "pnpm@10.8.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:contracts": "bash scripts/build-contracts.sh",
+    "test:contracts": "cargo test --workspace -- --test-threads=4",
+    "test:ts": "pnpm -r --if-present test",
+    "test": "pnpm build:contracts && pnpm test:contracts && pnpm test:ts",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && pnpm format:check && pnpm typecheck",
+    "sandbox-demo": "pnpm --filter @runway/scripts sandbox-demo"
+  },
+  "devDependencies": {
+    "prettier": "3.9.10",
+    "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "near-sandbox",
+      "near-workspaces",
+      "secp256k1"
+    ]
+  }
+}
