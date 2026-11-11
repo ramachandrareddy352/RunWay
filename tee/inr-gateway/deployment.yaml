@@ -1,0 +1,12 @@
+# Shade CLI configuration for the INR gateway (BUILD_PLAN T4b.4, runbook §8.5). Local mode until a
+# TEE deployment is approved (Amendment A1).
+environment: local # local | TEE
+network: testnet
+docker_compose_path: ./docker-compose.yaml
+agent_contract:
+  contract_id: inr.runway-rama.testnet
+  deploy_custom:
+    enabled: false
+tee_config:
+  phala:
+    enabled: false
