@@ -1,0 +1,23 @@
+[package]
+name = "runway-factory"
+description = "Creates keyless per-merchant settlement accounts <handle>.<factory> with the embedded settlement code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+build = "build.rs"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Embeds res/test/runway_settlement.wasm (the settlement built with its own test-hooks feature).
+test-hooks = []
+
+[dependencies]
+near-sdk = { workspace = true }
+runway-shared = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }
