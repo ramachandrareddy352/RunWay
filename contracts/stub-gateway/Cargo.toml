@@ -1,0 +1,15 @@
+[package]
+name = "runway-stub-gateway"
+description = "Test-only NEP-141 receiver standing in for the INR gateway (accepts or refuses InrPayout)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+runway-shared = { workspace = true }

@@ -1,0 +1,19 @@
+[package]
+name = "runway-integration-tests"
+description = "Sandbox integration tests for the Runway contracts (near-workspaces)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+# near-workspaces 0.24 requires Rust 1.95 (native only; contracts compile to wasm with 1.86).
+rust-version = "1.95"
+publish = false
+
+[dependencies]
+near-workspaces = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+serde = { version = "1", features = ["derive"] }
+runway-shared = { workspace = true, features = ["agents"] }
+# runway-shared pulls in near-sdk natively; near-sdk only compiles off-wasm with this feature.
+near-sdk = { workspace = true, features = ["non-contract-usage"] }
