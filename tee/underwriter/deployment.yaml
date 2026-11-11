@@ -1,0 +1,13 @@
+# Shade CLI configuration (BUILD_PLAN T3.4). Local mode until a TEE deployment is approved
+# (Amendment A1). `shade deploy` reads this file; `shade whitelist` whitelists the agent account.
+environment: local # local | TEE
+network: testnet
+docker_compose_path: ./docker-compose.yaml
+agent_contract:
+  contract_id: credit.runway-rama.testnet
+  # The credit contract is deployed by scripts/deploy-testnet.ts (runbook §8.2), not by shade.
+  deploy_custom:
+    enabled: false
+tee_config:
+  phala:
+    enabled: false # TEE only, with free credits and the human's go-ahead

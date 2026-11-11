@@ -5,7 +5,8 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { defaultPpid, initArgs, mockAttestation, mockMeasurements, profiles, usdc } from "@runway/config";
+import { initArgs, profiles, usdc } from "@runway/config";
+import { defaultPpid, mockAttestation, mockMeasurements } from "@runway/config/fixtures";
 import { Worker, type NearAccount, type TransactionResult } from "near-workspaces";
 import { useSandboxBinary } from "./sandbox-binary.js";
 
