@@ -17,6 +17,29 @@ export const ONECLICK_BASE_URL = "https://1click.chaindefuser.com";
 export const usdc = (whole: number | bigint): bigint => BigInt(whole) * USDC;
 export const yocto = (near: number): bigint => BigInt(Math.round(near * 1e6)) * 10n ** 18n;
 
+/** Contract accounts under a deployment root (BUILD_PLAN §8.2), e.g. `runway-rama.testnet`. */
+export interface Deployment {
+  root: string;
+  credit: string;
+  /** The factory; settlements are `<handle>.<factory>`. */
+  factory: string;
+  /** Mock USDC on sandbox/testnet. */
+  token: string;
+  inr: string;
+}
+
+export function deploymentFor(root: string): Deployment {
+  return {
+    root,
+    credit: `credit.${root}`,
+    factory: `pay.${root}`,
+    token: `musdc.${root}`,
+    inr: `inr.${root}`,
+  };
+}
+
+export const settlementAccount = (handle: string, factory: string): string => `${handle}.${factory}`;
+
 /** Mirrors `Policy` in contracts/credit/src/types.rs. */
 export interface Policy {
   version: number;
