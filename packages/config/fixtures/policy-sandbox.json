@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "anchored_caps": [
+    "500000000",
+    "2000000000",
+    "5000000000",
+    "15000000000"
+  ],
+  "unanchored_caps": [
+    "100000000",
+    "250000000",
+    "500000000",
+    "1000000000"
+  ],
+  "min_loan": "50000000",
+  "fee_bps_min": 300,
+  "fee_bps_max": 1500,
+  "repay_bps_min": 500,
+  "repay_bps_max": 2500,
+  "max_utilization_bps": 8000,
+  "max_exposure_per_merchant": "15000000000",
+  "daily_new_merchant_exposure": "2000000000",
+  "min_period_repay_bps": 1000,
+  "default_after_missed": 2,
+  "delinquency_provision_bps": 5000,
+  "protocol_fee_share_bps": 1000,
+  "merchant_registration_deposit": "2001250000000000000000000"
+}
