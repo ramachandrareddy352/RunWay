@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Badge, Button, Card, ErrorText, Field, Stat } from "../../../components/ui";
 import { acceptOffer, requestOffer, type OfferResult } from "../../../lib/actions";
 import { verifiedSession, type VerifiedSession } from "../../../lib/agents";
-import { credit } from "../../../lib/chain";
+import { credit, verified } from "../../../lib/chain";
 import { UNDERWRITER_URL } from "../../../lib/env";
 import { bps, fmtUsdc, parseUsdc } from "../../../lib/format";
 import { useAsync } from "../../../lib/useAsync";
@@ -40,7 +40,9 @@ export default function CapitalPage() {
   );
 
   useEffect(() => {
-    verifiedSession(UNDERWRITER_URL, "Underwriter", credit.agent).then(setSession).catch(setSessionError);
+    verifiedSession(UNDERWRITER_URL, "Underwriter", verified.credit.agent)
+      .then(setSession)
+      .catch(setSessionError);
   }, []);
 
   async function ask() {

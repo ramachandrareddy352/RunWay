@@ -6,7 +6,7 @@ import { accessKeyCount, verifyCommitment, viewAccount } from "@runway/sdk";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Badge, Button, Card, ErrorText, Stat } from "../../../../components/ui";
-import { credit, view } from "../../../../lib/chain";
+import { verified, verifiedView } from "../../../../lib/chain";
 import { DEPLOYMENT, RPCS } from "../../../../lib/env";
 import { bps, fmtUsdc } from "../../../../lib/format";
 import { useAsync } from "../../../../lib/useAsync";
@@ -36,14 +36,14 @@ export default function OfferAudit() {
   const [sealed, setSealed] = useState("");
   const [commitOk, setCommitOk] = useState<boolean | null>(null);
   const d = useAsync(async () => {
-    const offer = await credit.offer(id);
+    const offer = await verified.credit.offer(id);
     if (!offer) return null;
     const [policy, approved, agent, merchant, factoryHash] = await Promise.all([
-      credit.policy() as Promise<unknown> as Promise<Policy>,
-      credit.approved(),
-      credit.agent(offer.agent),
-      credit.merchant(offer.handle),
-      view(DEPLOYMENT.factory, "get_settlement_code_hash", {}) as Promise<string>,
+      verified.credit.policy() as Promise<unknown> as Promise<Policy>,
+      verified.credit.approved(),
+      verified.credit.agent(offer.agent),
+      verified.credit.merchant(offer.handle),
+      verifiedView(DEPLOYMENT.factory, "get_settlement_code_hash", {}) as Promise<string>,
     ]);
     const settlement = merchant?.merchant.settlement;
     const [acct, keys] = settlement

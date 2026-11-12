@@ -4,7 +4,7 @@
 import type { AgentRole, AgentView, ApprovedView } from "@runway/sdk";
 import { Badge, Card, ErrorText } from "../../components/ui";
 import { verifiedSession } from "../../lib/agents";
-import { credit, gateway } from "../../lib/chain";
+import { credit, gateway, verified } from "../../lib/chain";
 import { GATEWAY_URL, UNDERWRITER_URL } from "../../lib/env";
 import { useAsync } from "../../lib/useAsync";
 
@@ -89,8 +89,13 @@ export default function VerifyPage() {
       <h1 className="text-xl font-semibold">Verify the agents</h1>
       {c.data && <Approved title="Credit contract (Underwriter)" a={c.data} />}
       {g.data && <Approved title="INR gateway contract (InrGateway)" a={g.data} />}
-      <AgentCard name="Underwriter" url={UNDERWRITER_URL} role="Underwriter" getAgent={credit.agent} />
-      <AgentCard name="INR gateway" url={GATEWAY_URL} role="InrGateway" getAgent={gateway.agent} />
+      <AgentCard
+        name="Underwriter"
+        url={UNDERWRITER_URL}
+        role="Underwriter"
+        getAgent={verified.credit.agent}
+      />
+      <AgentCard name="INR gateway" url={GATEWAY_URL} role="InrGateway" getAgent={verified.gateway.agent} />
       <ErrorText error={c.error ?? g.error} />
     </div>
   );

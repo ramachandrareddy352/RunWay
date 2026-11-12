@@ -7,7 +7,7 @@ import { PayCrypto, type PayCryptoDeps } from "../../../components/PayCrypto";
 import { PayUpi, type UpiDeps } from "../../../components/PayUpi";
 import { Button, Card, ErrorText, Field } from "../../../components/ui";
 import { collect, collectStatus, logPayment, simulatePayment } from "../../../lib/actions";
-import { credit } from "../../../lib/chain";
+import { verified } from "../../../lib/chain";
 import { DEPLOYMENT, EXPLORER, NETWORK } from "../../../lib/env";
 import { parseUsdc } from "../../../lib/format";
 
@@ -22,7 +22,7 @@ function Pay() {
   const memo = q.get("memo");
 
   useEffect(() => {
-    credit.merchant(handle).then(setMerchant).catch(setError);
+    verified.credit.merchant(handle).then(setMerchant).catch(setError);
   }, [handle]);
 
   const cryptoDeps = useMemo<PayCryptoDeps>(

@@ -15,7 +15,7 @@ import {
 import type { BeneficiaryInput } from "../components/PayoutSettings";
 import type { CollectBody, CollectReply, CollectState } from "../components/PayUpi";
 import { postSealed, verifiedSession } from "./agents";
-import { credit, gateway, view } from "./chain";
+import { gateway, verified, view } from "./chain";
 import { API_URL, DEPLOYMENT, GATEWAY_URL, UNDERWRITER_URL } from "./env";
 import { TGAS, type RunwayWallet } from "./wallet";
 
@@ -115,7 +115,7 @@ export async function collectStatus(id: string): Promise<CollectState> {
 
 export async function registerBeneficiary(w: RunwayWallet, b: BeneficiaryInput): Promise<{ masked: string }> {
   if (!w.accountId) throw new Error("connect a wallet first");
-  const s = await verifiedSession(GATEWAY_URL, "InrGateway", gateway.agent);
+  const s = await verifiedSession(GATEWAY_URL, "InrGateway", verified.gateway.agent);
   const auth = await w.signNep413(beneficiaryMessage(w.accountId), GATEWAY_RECIPIENT);
   const { reply } = await postSealed<{ ok: boolean; masked: string }>(
     `${GATEWAY_URL}/inr/beneficiary`,
@@ -126,13 +126,17 @@ export async function registerBeneficiary(w: RunwayWallet, b: BeneficiaryInput):
   return { masked: reply.masked };
 }
 
-/** Payouts for an account, newest first. There is no per-beneficiary index, so this scans ids. */
+/** Payouts for an account, newest first. There is no per-beneficiary index, so this scans ids in
+ *  parallel batches of 10 until the first missing id. */
 export async function payoutsFor(accountId: string, max = 200): Promise<PayoutRequest[]> {
   const out: PayoutRequest[] = [];
-  for (let id = 1; id <= max; id++) {
-    const p = await gateway.payout(String(id));
-    if (!p) break;
-    if (p.beneficiary === accountId) out.push(p);
+  for (let start = 1; start <= max; start += 10) {
+    const batch = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => gateway.payout(String(start + i)).catch(() => null)),
+    );
+    const end = batch.findIndex((p) => !p);
+    for (const p of end < 0 ? batch : batch.slice(0, end)) if (p && p.beneficiary === accountId) out.push(p);
+    if (end >= 0) break;
   }
   return out.reverse();
 }
@@ -156,7 +160,7 @@ export async function requestOffer(
     statements?: { name: string; mime: "text/csv" | "application/pdf"; data_b64: string }[];
   },
 ): Promise<OfferResult> {
-  const s = await verifiedSession(UNDERWRITER_URL, "Underwriter", credit.agent);
+  const s = await verifiedSession(UNDERWRITER_URL, "Underwriter", verified.credit.agent);
   const nep413 = await w.signNep413(underwriteMessage(handle), UNDERWRITE_RECIPIENT);
   const { reply, open } = await postSealed<OfferResult & { sealed: Sealed }>(
     `${UNDERWRITER_URL}/underwrite`,
@@ -170,7 +174,12 @@ export async function requestOffer(
   );
   let commitmentOk: boolean | undefined;
   if (reply.decision === "offer" && reply.offer_id) {
-    const offer = await credit.offer(reply.offer_id);
+    // submit_offer returns at optimistic finality; verified reads use the final block, a few seconds behind.
+    let offer = await verified.credit.offer(reply.offer_id);
+    for (let i = 0; !offer && i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 2_000));
+      offer = await verified.credit.offer(reply.offer_id);
+    }
     commitmentOk = !!offer && verifyCommitment(offer.inputs_commitment, sealed.inputs, sealed.salt);
     try {
       localStorage.setItem(
