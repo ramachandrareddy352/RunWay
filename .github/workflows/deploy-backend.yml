@@ -42,10 +42,10 @@ permissions:
 jobs:
   image:
     name: Build the node service image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Docker build
         run: docker build -f services/node/Dockerfile -t runway-node:ci .
       - name: Smoke test (starts and fails fast without keys)
@@ -58,7 +58,7 @@ jobs:
     name: Deploy via hook
     needs: image
     if: ${{ github.event_name != 'pull_request' && vars.DEPLOY_BACKEND_WITH_HOOK == 'true' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Trigger deploy

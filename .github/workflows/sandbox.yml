@@ -49,10 +49,10 @@ env:
 jobs:
   integration:
     name: Sandbox integration tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Rust toolchains
         run: |
           rustup toolchain install 1.95.0 --profile minimal -t wasm32-unknown-unknown
@@ -64,7 +64,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -LsSf \
             "https://github.com/near/cargo-near/releases/download/${CARGO_NEAR_VERSION}/cargo-near-installer.sh" | sh
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Build contracts to wasm
@@ -72,7 +72,7 @@ jobs:
       # Each test starts its own nearcore 2.14.0 sandbox (downloaded by near-workspaces).
       - name: Sandbox integration tests
         run: cargo test -p runway-integration-tests -- --test-threads=4
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: contracts-wasm
           path: res/
@@ -81,18 +81,18 @@ jobs:
   demo:
     name: Sandbox demos (must print DEMO PASSED)
     needs: integration
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: contracts-wasm
           path: res/
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
