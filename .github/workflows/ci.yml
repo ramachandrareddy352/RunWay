@@ -26,10 +26,10 @@ env:
 jobs:
   contracts:
     name: Contracts (wasm build, fmt, clippy, unit tests)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # rust-toolchain.toml pins 1.95.0 for native builds/tests; wasm is built with 1.86.0
       # because near-sdk 5.26.1 (pinned for shade-attestation) targets that VM (see docs/SPIKES.md).
@@ -48,7 +48,7 @@ jobs:
             "https://github.com/near/cargo-near/releases/download/${CARGO_NEAR_VERSION}/cargo-near-installer.sh" | sh
           cargo near --version
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -67,14 +67,14 @@ jobs:
 
   typescript:
     name: TypeScript (typecheck, tests, format)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: ${{ env.PNPM_VERSION }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
