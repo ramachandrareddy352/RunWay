@@ -15,7 +15,7 @@ export default function Home() {
       <SimulatedBanner>
         This deployment runs on NEAR testnet with mock USDC and a simulated UPI provider.
       </SimulatedBanner>
-      <Card title="Try it on testnet (about 20 minutes)">
+      <Card title="Try it on testnet (about 30 minutes)">
         <ol className="list-decimal space-y-1 pl-5 text-sm">
           <li>
             Create a testnet wallet (Meteor or MyNearWallet, set to testnet) and get free testnet NEAR from
@@ -31,6 +31,14 @@ export default function Home() {
             . Registering a merchant locks about 2 NEAR.
           </li>
           <li>
+            First, on{" "}
+            <Link className="text-accent underline" href="/lend">
+              Lend
+            </Link>
+            , get 1,000 test USDC. This also registers your wallet with the mock USDC token, so your payouts
+            and your loan can reach it.
+          </li>
+          <li>
             <Link className="text-accent underline" href="/verify">
               Verify
             </Link>{" "}
@@ -41,26 +49,32 @@ export default function Home() {
             .
           </li>
           <li>
-            Pay your handle with SIMULATED USDC once in each of three 5-minute windows (the pay link is on the
-            merchant page).
+            Pay your handle 400 SIMULATED USDC once in each of three 5-minute windows in a row (the pay link
+            is on the merchant page; windows follow the clock).
           </li>
           <li>
-            Ask for an offer on{" "}
+            In the next window, ask for an offer on{" "}
             <Link className="text-accent underline" href="/merchant/capital">
               Capital
-            </Link>
-            , accept it, and watch later payments repay it. Try the UPI tab and rupee payouts.
+            </Link>{" "}
+            and accept it, then repay it within 5 minutes by paying yourself 1,200. Try the UPI tab and rupee
+            payouts.
           </li>
           <li>
-            On{" "}
-            <Link className="text-accent underline" href="/lend">
-              Lend
-            </Link>
-            , get 1,000 test USDC, deposit, and withdraw after the cooldown. Check everything on{" "}
+            On Lend, deposit and withdraw after the cooldown, then check everything on{" "}
             <Link className="text-accent underline" href="/audit">
               Audit
             </Link>
-            .
+            . The{" "}
+            <a
+              className="text-accent underline"
+              href="https://github.com/ramachandrareddy352/RunWay/blob/main/docs/TESTING.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              full test plan
+            </a>{" "}
+            lists the expected result of every step.
           </li>
         </ol>
       </Card>
