@@ -48,7 +48,7 @@ Sandbox timing: this WSL2 VM produces a block every 1.5–3.5 s of wall time, an
 - [x] T2.1 `@runway/sdk` 1Click client and `verifyQuote` / `verifyDeposit` (SD4–SD6)
 - [x] T2.2 `apps/web` and `/pay/[handle]`: dual-RPC merchant lookup, asset picker with chain minimums, refund-address validation, browser-side 1Click quote with the live checklist, 7-status timeline, SIMULATED testnet payment (W1–W3)
 - [x] T2.3 `services/api`: payment log, keeper, `/dev/simulate-payment` (A1–A4)
-- [ ] T2.4 Testnet deployment: deferred until the human says go (Amendment A1). `scripts/print-init.ts` exists; `scripts/deploy-testnet.ts` is not written yet.
+- [x] T2.4 Testnet deployment (2026-11-12): `scripts/deploy-testnet.ts` (idempotent, `--verify`). Accounts, code hashes and transactions in `deployments/testnet.json` and docs/RUNBOOK.md.
 - [x] T2.5 removed (Amendment A1)
 - [x] Gate G2 (sandbox): SD4–SD6, A1–A4, W1–W3 pass; the simulated payment → keeper → settle flow passes in `make sandbox-demo`.
 
@@ -57,7 +57,7 @@ Sandbox timing: this WSL2 VM produces a block every 1.5–3.5 s of wall time, an
 - [x] T3.1 `tee/underwriter` (Dockerfile, deployment.yaml, endpoints hardcoded per network, secrets-only env). The Shade template wasn't copied: `@neardefi/shade-agent-js` 2.2.0 is used directly (`packages/agent-kit/src/boot.ts`). `deployment.yaml` uses the keys `shade` CLI 2.4.0 parses (checked in its `config.js`), with every TEE step disabled.
 - [x] T3.2 Boot, registration, session key rotation; browser-side `checkSession` (E1, E2)
 - [x] T3.3 `/underwrite` pipeline (E3–E7)
-- [ ] T3.4 Local deploy with the Shade CLI: deferred with T2.4. The TEE half needs free Phala credits and the human's go-ahead.
+- [x] T3.4 local half: `uwagent.runway-rama.testnet` registered in Shade local mode (whitelisted, mock measurements, role Underwriter). Agents sign with a key from env (`keySigner`); the TEE half (ShadeClient + Phala) needs free Phala credits and the human's go-ahead.
 - [x] T3.5 `/verify` page
 - [ ] Gate G3: E1–E7 pass. "A real TEE agent on testnet" waits for T3.4; the same flow passes on the sandbox (`make sandbox-demo` requests both offers through the sealed pipeline).
 
@@ -79,7 +79,7 @@ Sandbox timing: this WSL2 VM produces a block every 1.5–3.5 s of wall time, an
 - [x] T4b.8 Underwriter INR receipts and Razorpay anchor (E26, E27)
 - [x] T4b.9 Web: UPI tab, ₹ deposit/withdraw, settings, INR audit tables (W10–W12)
 - [x] T4b.10 `make sandbox-demo-inr` (X4): `DEMO (INR) PASSED`
-- [ ] T4b.11 Deploy: deferred (Amendment A1)
+- [x] T4b.11 local half: `inr.runway-rama.testnet` deployed with a 5,000 USDC float, `gwagent` registered with role InrGateway, mock provider (RazorpayX signup unavailable)
 - [ ] Gate G4b: all listed tests and X4 pass; the recorded testnet runs wait for deployment.
 
 ## Step 5: Product surfaces
@@ -110,3 +110,21 @@ Sandbox timing: this WSL2 VM produces a block every 1.5–3.5 s of wall time, an
 Found by W1: the quote checklist echoed the deposit address in its detail text even when other checks failed, so a payer could copy an address from a tampered quote. `verifyQuote` now reports only "present"; the address appears only after every check and the status re-read pass.
 
 The web tests run on happy-dom with thread workers: jsdom 31 (which loads a native canvas module) timed out starting workers over the WSL `/mnt/c` mount.
+
+## Round 3 (2026-11-12): testnet
+
+| Check | Result |
+| --- | --- |
+| `deploy-testnet` | `DEPLOYMENT OK`: 4 contracts (hashes match `res/CODE_HASHES.txt`), vault seeded, 2 local agents registered, float 5,000 USDC, priya registered (0 keys) |
+| `pin-exit` | exit page on IPFS `bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4`, recorded with `set_exit_app_cid` |
+| `services/node` on testnet | API + keeper, underwriter and gateway on one port; both agents registered; live FX ₹100–102.6 |
+| `testnet-e2e` | `TESTNET E2E PASSED`: 3 buckets settled by the keeper; sealed offer (grade C, 100 USDC, unanchored cap), commitment verified; loan Active, repaid from two routed payments; UPI sale at the live rate settled; merchant ₹ payout Paid; investor ₹ deposit → shares and ₹ withdrawal Paid |
+| Web data layer, live (`apps/web/test/live-testnet.test.ts`, opt-in) | 4 passed: two-RPC merchant lookup, vault, both session checks, payout history |
+| NEAR AI (`tee/underwriter/scripts/nearai-live.ts`) | Verified private inference live: attestations, chat, provider_tee signature over the exact bytes, receipt hash (earlier the key returned HTTP 402 until credits were added) |
+
+Fixed this round:
+- `rpc.testnet.near.org` now answers HTTP 429 "THIS ENDPOINT IS DEPRECATED"; the second testnet RPC is dRPC (`near-testnet.drpc.org`), next to FastNEAR. The web app uses both only for reads that gate an action and FastNEAR alone for display reads.
+- Blank variables in `.env` (for example `RAZORPAYX_ACCOUNT_NUMBER=`) failed validation; they now count as unset.
+- Nothing settled a delivered UPI sale: the gateway now reports it to the API (`POST /payments/upi`, test A5) and the keeper settles it.
+- Offers were read back at the final block before it included them; the web app and the E2E now wait for the final block.
+- The mock UPI page's redirect ignored the mount path.
