@@ -15,16 +15,18 @@ import { cors } from "hono/cors";
 const port = Number(process.env.PORT ?? 8787);
 const env = process.env;
 
-const api = await createApiRuntime({ ...env, DATABASE_PATH: env.DATABASE_PATH ?? "./data/runway.sqlite" });
+// `||`, not `??`: a blank variable counts as unset.
+const api = await createApiRuntime({ ...env, DATABASE_PATH: env.DATABASE_PATH || "./data/runway.sqlite" });
 const underwriter = await createUnderwriter(env);
 const gateway = await createGateway(
   {
     ...env,
-    DATABASE_PATH: env.GATEWAY_DATABASE_PATH ?? "./data/inr-gateway.sqlite",
+    DATABASE_PATH: env.GATEWAY_DATABASE_PATH || "./data/inr-gateway.sqlite",
     // Delivered UPI sales go to this process's own API, whose keeper settles them.
-    API_URL: env.API_URL ?? `http://127.0.0.1:${port}/api`,
-    // The SIMULATED UPI page links are built from this; set it to the public URL when hosted.
-    PUBLIC_URL: env.PUBLIC_URL ?? `http://localhost:${port}`,
+    API_URL: env.API_URL || `http://127.0.0.1:${port}/api`,
+    // The SIMULATED UPI page links are built from this. Render sets RENDER_EXTERNAL_URL itself;
+    // on other hosts set PUBLIC_URL to the service's public https URL.
+    PUBLIC_URL: env.PUBLIC_URL || env.RENDER_EXTERNAL_URL || `http://localhost:${port}`,
   },
   { basePath: "/gw" },
 );

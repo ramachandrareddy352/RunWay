@@ -1,0 +1,48 @@
+# Render Blueprint for the Runway backend (services/node: API + keeper, underwriter, INR gateway).
+# Render → New → Blueprint → pick this repo. It asks for every `sync: false` value once (copy them
+# from .env and .env.agents.local), then auto-deploys main after the GitHub checks pass.
+# Free plan: sleeps after 15 minutes without traffic and wakes on the next request (~1 minute); the
+# web app pings it when a page loads. The filesystem is ephemeral, which is fine: all state that
+# matters is on-chain. Don't run a second copy of the backend (e.g. locally) with the same agent keys.
+services:
+  - type: web
+    name: runway-node
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./services/node/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NETWORK
+        value: testnet
+      - key: NEAR_NETWORK
+        value: testnet
+      - key: RUNWAY_ROOT
+        value: runway-rama.testnet
+      - key: KEEPER_ACCOUNT_ID
+        value: keeper.runway-rama.testnet
+      - key: UNDERWRITER_AGENT_ACCOUNT_ID
+        value: uwagent.runway-rama.testnet
+      - key: GATEWAY_AGENT_ACCOUNT_ID
+        value: gwagent.runway-rama.testnet
+      - key: INR_PROVIDER
+        value: mock
+      - key: NEARAI_DAILY_CALLS
+        value: "20"
+      # Secrets: entered once in the Render dashboard.
+      - key: KEEPER_PRIVATE_KEY
+        sync: false
+      - key: UNDERWRITER_AGENT_PRIVATE_KEY
+        sync: false
+      - key: GATEWAY_AGENT_PRIVATE_KEY
+        sync: false
+      - key: NEARAI_API_KEY
+        sync: false
+      # PUBLIC_URL is not needed here: services/node uses RENDER_EXTERNAL_URL, which Render sets.
+      # Random secrets Render generates: the mock webhook HMAC key and the local-mode K_app seed.
+      - key: MOCK_WEBHOOK_SECRET
+        generateValue: true
+      - key: AGENT_DERIVATION_PATH
+        generateValue: true
