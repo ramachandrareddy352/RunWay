@@ -1,0 +1,81 @@
+{
+  "started_at": "2026-11-12T06:17:00.470Z",
+  "node": "http://localhost:8787",
+  "handle": "e2ed573wq",
+  "steps": [
+    {
+      "at": "2026-11-12T06:17:01.893Z",
+      "step": "services up",
+      "agents": {
+        "underwriter": "uwagent.runway-rama.testnet",
+        "gateway": "gwagent.runway-rama.testnet"
+      },
+      "provider": "mock",
+      "fx": {
+        "rate_ppu": 10217,
+        "sources": [
+          "coindcx:USDCINR",
+          "wazirx:usdcinr",
+          "giottus:usdtinr"
+        ],
+        "paused": false,
+        "reason": null
+      }
+    },
+    {
+      "at": "2026-11-12T06:17:12.712Z",
+      "step": "offer #2: grade C, limit 100000000, fee 1000 bps, repay 500 bps; commitment verified",
+      "reasons": [
+        "revenue: testnet-buckets (on-chain inflow, not 1Click-verified)",
+        "statements dropped: chat HTTP 402",
+        "payer data unavailable: diversity scored as 0",
+        "score 42.18 → grade C",
+        "limit bounded by tier cap"
+      ],
+      "llm_receipt_hash": null
+    },
+    {
+      "at": "2026-11-12T06:17:25.277Z",
+      "step": "loan #3 Active; 100000000 µUSDC disbursed to e2ed573wq.runway-rama.testnet",
+      "tx": "G2xr6WF9AWheViifHGrXMPhAhpjFHmkdVjsPG6LL96QX",
+      "owed": "110000000"
+    },
+    {
+      "at": "2026-11-12T06:17:49.146Z",
+      "step": "SIMULATED 1200 USDC settled: loan repaid 60000000/110000000",
+      "tx": "ExW9Mam6k2oN9Pn2zbr4h2gUQUpjvKMGSvQ8gHjcDjDs"
+    },
+    {
+      "at": "2026-11-12T06:18:08.041Z",
+      "step": "SIMULATED 1200 USDC settled: loan repaid 110000000/110000000",
+      "tx": "H7rnhty2Gy768kepuhcCaDeHEN9bNuCRssze2voupPbV"
+    },
+    {
+      "at": "2026-11-12T06:18:34.706Z",
+      "step": "UPI sale ₹8,500.00 → 82455883 µUSDC at ₹102.57/USDC to e2ed573wq.pay.runway-rama.testnet, settled",
+      "payment_ref_hash": "3TfpzFMFYedhzzcManqHr8bWSnVrNdSB7fkCqyoWA7ac"
+    },
+    {
+      "at": "2026-11-12T06:19:25.341Z",
+      "step": "payout mode ₹, beneficiary e2***@upi; next UPI sale → payout #1 Paid: 82455883 µUSDC → 841521 paise",
+      "payment_ref_hash": "C317dzGPKZegLea8X6CpgDNgBJoYU3cZDZg8Vn6EG1ey",
+      "utr_hash": "CXqaxjRWYMqbyBJzsP2UCBeYTRpun5YsBz4enj1HN5gR"
+    },
+    {
+      "at": "2026-11-12T06:19:41.549Z",
+      "step": "investor ₹8,500.00 deposit → 82381746 runUSDC shares",
+      "payment_ref_hash": "DGj1HT8VeP522QdjzzjBzrvxMpSpViTW96ioJTU6QATJ"
+    },
+    {
+      "at": "2026-11-12T06:22:16.746Z",
+      "step": "investor ₹ withdrawal → payout #2 Paid: 82455882 µUSDC → 825932 paise",
+      "request_tx": "82qh8fdYGdHbx3REszLXK2pv3FZBPrjPjL77KVGvoC1z",
+      "claim_tx": "GydnFsNeQkmRSet9jfAcwaxkqkDtriYGT5c5hznfxQE7"
+    },
+    {
+      "at": "2026-11-12T06:22:16.752Z",
+      "step": "TESTNET E2E PASSED"
+    }
+  ],
+  "finished_at": "2026-11-12T06:22:16.752Z"
+}

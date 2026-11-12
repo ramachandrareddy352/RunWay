@@ -2,7 +2,8 @@
 // free hosts run it as-is). The log is untrusted, public data: deposit addresses and statuses only.
 import { DatabaseSync } from "node:sqlite";
 
-export type PaymentKind = "oneclick" | "simulated";
+/** "upi": a UPI sale the INR gateway delivered to the settlement account (it still needs a settle). */
+export type PaymentKind = "oneclick" | "simulated" | "upi";
 
 export interface Payment {
   handle: string;

@@ -33,6 +33,8 @@ export interface PayinDeps {
   now?: () => number;
   /** Collect lifetime (Razorpay allows 2 min – 2 h). */
   ttlSec?: number;
+  /** Called after a pay-in is Delivered (services wire it to the API so the keeper settles UPI sales). */
+  onDelivered?: (c: CollectRow) => Promise<void>;
 }
 
 export class CollectRefused extends Error {}
@@ -229,8 +231,14 @@ export async function recordPaid(c: CollectRow, d: PayinDeps): Promise<void> {
   const receipt = await snap.view<PayinReceipt | null>(d.ids.inr, "get_receipt", {
     payment_ref_hash: c.paymentRefHash,
   });
-  if (receipt?.status === "Delivered") d.store.setStatus(c.collectId, "delivered");
-  else if (receipt?.status === "Failed")
+  if (receipt?.status === "Delivered") {
+    d.store.setStatus(c.collectId, "delivered");
+    await d
+      .onDelivered?.(c)
+      .catch((e: unknown) =>
+        d.log.warn("on_delivered_failed", { collect_id: c.collectId, code: errorCode(e) }),
+      );
+  } else if (receipt?.status === "Failed")
     d.store.setStatus(c.collectId, "failed", "delivery failed; the USDC stayed in the float");
   d.log.info("payin_recorded", { collect_id: c.collectId, status: receipt?.status ?? "unknown" });
 }

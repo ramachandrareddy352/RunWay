@@ -36,6 +36,25 @@ describe("API", () => {
     expect(list[0]).toMatchObject({ depositAddress: "0xabc1234567", status: "unknown", kind: "oneclick" });
   });
 
+  it("A5: delivered UPI sales are logged once and settled by the keeper", async () => {
+    const store = new PaymentStore();
+    const { chain, calls } = fakeChain();
+    const app = createApp({ store, chain, network: "testnet" });
+    const body = { handle: "priya", paymentRefHash: "7zGf6QEfydKoxAGeBcMhnXXNFAYveBp7Kz9fRvsQEST1" };
+    expect((await app.fetch(post("/payments/upi", body))).status).toBe(201);
+    expect((await app.fetch(post("/payments/upi", body))).status).toBe(200);
+    expect(
+      (await app.fetch(post("/payments/upi", { handle: "priya", paymentRefHash: "not base58!" }))).status,
+    ).toBe(400);
+    await new Keeper(store, chain, async () => ({ status: "PENDING_DEPOSIT" }), quiet).tick();
+    expect(calls.settle).toEqual(["priya.pay.root.testnet"]);
+    const list = (await (await app.fetch(new Request("http://api/payments/priya"))).json()) as {
+      kind: string;
+      settledTx: string;
+    }[];
+    expect(list[0]).toMatchObject({ kind: "upi", settledTx: "tx-settle-1" });
+  });
+
   it("A3: bad input → 400", async () => {
     const app = createApp({ store: new PaymentStore(), chain: fakeChain().chain, network: "testnet" });
     for (const body of [

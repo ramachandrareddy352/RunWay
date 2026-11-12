@@ -160,9 +160,9 @@ export const profiles: Record<Network, Profile> = {
     time: { periodSec: 300, withdrawCooldownSec: 120, offerTtlSec: 3_600, policyTimelockSec: 600 },
     revenueSource: "testnet-buckets",
     gateway: gatewayProfile(50, usdc(5_000)),
-    // Two independent operators (BUILD_PLAN §8.1). Verify availability in T2.1 against
-    // https://docs.near.org/api/rpc/providers and replace if either is retired or rate-limited.
-    rpcUrls: ["https://rpc.testnet.fastnear.com", "https://rpc.testnet.near.org"],
+    // Two independent operators (BUILD_PLAN §8.1), both on https://docs.near.org/api/rpc/providers.
+    // rpc.testnet.near.org was dropped on 2026-11-12: it answers HTTP 429 "THIS ENDPOINT IS DEPRECATED".
+    rpcUrls: ["https://rpc.testnet.fastnear.com", "https://near-testnet.drpc.org"],
   },
   mainnet: {
     network: "mainnet",

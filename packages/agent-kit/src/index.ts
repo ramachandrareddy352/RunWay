@@ -5,3 +5,5 @@ export * from "./kapp.js";
 export * from "./log.js";
 export * from "./session-keys.js";
 export * from "./nonces.js";
+export * from "./key-signer.js";
+export * from "./env.js";

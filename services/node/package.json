@@ -1,0 +1,22 @@
+{
+  "name": "@runway/node",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx --env-file-if-exists=../../.env --env-file-if-exists=../../.env.agents.local src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@hono/node-server": "2.1.5",
+    "@runway/api": "workspace:*",
+    "@runway/inr-gateway": "workspace:*",
+    "@runway/underwriter": "workspace:*",
+    "hono": "4.13.14"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

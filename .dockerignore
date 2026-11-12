@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/dist
+target
+res
+data
+**/*.sqlite
+.env
+.env.*
+!.env.example
+.git
+.vscode
