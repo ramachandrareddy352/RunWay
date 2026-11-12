@@ -1,0 +1,73 @@
+name: Backend (services/node)
+
+# 1. image: builds the services/node Docker image on every PR and push that touches it, so a broken
+#    image never reaches the host.
+# 2. deploy: on pushes to main, triggers the host's deploy hook and waits until the new version
+#    answers. Render (render.yaml) already auto-deploys after checks pass, so this job runs only when
+#    the repository variable DEPLOY_BACKEND_WITH_HOOK=true and the secret BACKEND_DEPLOY_HOOK_URL are
+#    set (for hosts without Git auto-deploy). The variable BACKEND_URL (e.g. https://runway-node.onrender.com)
+#    is used for the health check.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      [
+        "services/**",
+        "tee/**",
+        "packages/**",
+        "pnpm-lock.yaml",
+        ".dockerignore",
+        ".github/workflows/deploy-backend.yml",
+      ]
+  push:
+    branches: [main]
+    paths:
+      [
+        "services/**",
+        "tee/**",
+        "packages/**",
+        "pnpm-lock.yaml",
+        ".dockerignore",
+        ".github/workflows/deploy-backend.yml",
+      ]
+  workflow_dispatch:
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    name: Build the node service image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build
+        run: docker build -f services/node/Dockerfile -t runway-node:ci .
+      - name: Smoke test (starts and fails fast without keys)
+        run: |
+          set +e
+          docker run --rm -e NEAR_NETWORK=testnet -e RUNWAY_ROOT=runway-rama.testnet runway-node:ci > out.txt 2>&1
+          grep -q "KEEPER_ACCOUNT_ID" out.txt && echo "image runs; refused to start without keys, as expected"
+
+  deploy:
+    name: Deploy via hook
+    needs: image
+    if: ${{ github.event_name != 'pull_request' && vars.DEPLOY_BACKEND_WITH_HOOK == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Trigger deploy
+        run: curl -fsS -X POST "${{ secrets.BACKEND_DEPLOY_HOOK_URL }}"
+      - name: Wait until it answers
+        if: ${{ vars.BACKEND_URL != '' }}
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS -m 20 "${{ vars.BACKEND_URL }}/" | grep -q '"ok":true'; then echo "backend up"; exit 0; fi
+            sleep 15
+          done
+          echo "backend did not come up in 15 minutes"; exit 1

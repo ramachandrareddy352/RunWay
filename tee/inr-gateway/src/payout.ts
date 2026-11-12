@@ -58,7 +58,16 @@ async function processPayout(
     }
     return;
   }
-  const blob = openBlob(d.blobKey, p.beneficiary, blobB64);
+  let blob;
+  try {
+    blob = openBlob(d.blobKey, p.beneficiary, blobB64);
+  } catch {
+    // Registered under another app key (for example before a redeploy with a new K_app seed): the
+    // payout can't be sent, so fail it, which refunds the USDC; the beneficiary registers again.
+    await call("fail_payout", { payout_id: p.id, reason: "beneficiary_unreadable" });
+    d.log.info("payout_failed", { payout_id: p.id, reason: "beneficiary_unreadable" });
+    return;
+  }
 
   let paise: bigint;
   if (p.status === "Pending") {

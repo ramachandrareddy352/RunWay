@@ -13,6 +13,8 @@ export interface Chain {
   checkLoan(loanId: string): Promise<string>;
   /** Mints mock USDC to `to` (testnet/sandbox only). */
   mint(to: string, amount: bigint): Promise<string>;
+  /** Test faucet (testnet/sandbox only): registers `to` with the token if needed, then mints. */
+  faucet(to: string, amount: bigint): Promise<string>;
 }
 
 const TGAS = 10n ** 12n;
@@ -59,5 +61,23 @@ export async function nearChain(c: NearChainConfig): Promise<Chain> {
     },
     checkLoan: (loanId) => call(c.credit, "check_loan", { loan_id: loanId }, 50n),
     mint: (to, amount) => call(c.token, "mint", { account_id: to, amount: amount.toString() }, 30n),
+    async faucet(to, amount) {
+      // The account must exist; registering storage for a name nobody owns would waste the deposit.
+      await near.connection.provider.query({
+        request_type: "view_account",
+        finality: "final",
+        account_id: to,
+      });
+      const registered = await view<unknown>(c.token, "storage_balance_of", { account_id: to });
+      if (!registered)
+        await call(
+          c.token,
+          "storage_deposit",
+          { account_id: to, registration_only: true },
+          30n,
+          1_250_000_000_000_000_000_000n,
+        );
+      return call(c.token, "mint", { account_id: to, amount: amount.toString() }, 30n);
+    },
   };
 }

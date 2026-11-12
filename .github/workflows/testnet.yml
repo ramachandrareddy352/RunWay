@@ -1,0 +1,88 @@
+name: Testnet
+
+# Manual operations on the NEAR testnet deployment (Actions → Testnet → Run workflow):
+#   verify    read-only: code hashes, keys, profile, roles (no build needed)
+#   deploy    build the contracts and deploy/seed whatever is missing (refuses to replace live code)
+#   e2e       full end-to-end run against the hosted backend (BACKEND_URL), ~30 minutes
+#   pin-exit  build the exit page, pin it to IPFS (Pinata) and record the CID on-chain
+# Secrets: TESTNET_KEYS_JSON ({"<account>": "ed25519:<key>", ...}), PINATA_JWT (pin-exit).
+# Variables: BACKEND_URL (e2e).
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "verify | deploy | e2e | pin-exit"
+        required: true
+        default: verify
+        type: choice
+        options: [verify, deploy, e2e, pin-exit]
+
+concurrency:
+  group: testnet
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  RUNWAY_ROOT: runway-rama.testnet
+  KEEPER_ACCOUNT_ID: keeper.runway-rama.testnet
+  NEAR_RPC_URL: https://rpc.testnet.fastnear.com
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @runway/scripts... --filter @runway/exit...
+
+      - name: Rust toolchains and cargo-near (deploy only)
+        if: ${{ inputs.task == 'deploy' }}
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal -t wasm32-unknown-unknown
+          rustup toolchain install 1.86.0 --profile minimal -t wasm32-unknown-unknown
+          curl --proto '=https' --tlsv1.2 -LsSf https://github.com/near/cargo-near/releases/download/cargo-near-v0.23.0/cargo-near-installer.sh | sh
+      - name: Build contracts (deploy only)
+        if: ${{ inputs.task == 'deploy' }}
+        run: bash scripts/build-contracts.sh --release-only
+
+      - name: Keys
+        env:
+          TESTNET_KEYS_JSON: ${{ secrets.TESTNET_KEYS_JSON }}
+        run: pnpm --filter @runway/scripts ci-keys
+
+      - name: Verify
+        if: ${{ inputs.task == 'verify' }}
+        run: pnpm --filter @runway/scripts exec tsx deploy-testnet.ts --verify
+      - name: Deploy
+        if: ${{ inputs.task == 'deploy' }}
+        run: pnpm --filter @runway/scripts exec tsx deploy-testnet.ts
+      - name: End to end
+        if: ${{ inputs.task == 'e2e' }}
+        env:
+          RUNWAY_NODE_URL: ${{ vars.BACKEND_URL }}
+        run: |
+          # Free hosts sleep: wake the backend first.
+          for i in $(seq 1 20); do curl -fsS -m 30 "$RUNWAY_NODE_URL/" && break; sleep 15; done
+          pnpm --filter @runway/scripts exec tsx testnet-e2e.ts --fresh
+      - name: Pin the exit page
+        if: ${{ inputs.task == 'pin-exit' }}
+        env:
+          PINATA_JWT: ${{ secrets.PINATA_JWT }}
+        run: |
+          pnpm --filter @runway/exit build
+          pnpm --filter @runway/scripts exec tsx pin-exit.ts
+      - name: Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testnet-${{ inputs.task }}
+          path: deployments/

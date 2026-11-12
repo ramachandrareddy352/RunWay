@@ -191,6 +191,10 @@ export function apiChain(s: Stack): Chain {
       await mint(s, to, amount);
       return "sandbox-mint";
     },
+    async faucet(to, amount) {
+      await mint(s, to, amount);
+      return "sandbox-faucet";
+    },
   };
 }
 

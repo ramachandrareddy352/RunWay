@@ -71,8 +71,8 @@ Agents run in Shade local mode (`requires_tee = false`): `uwagent.runway-rama.te
 `bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4`
 ([ipfs.io](https://ipfs.io/ipfs/bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4)) and recorded in
 `credit.get_exit_app_cid()`. The hosted web app and node service URLs go here once they are deployed;
-[docs/DEPLOY.md](docs/DEPLOY.md) has the steps (Vercel for the web app, any always-on Node host for
-`services/node`).
+[docs/DEPLOY.md](docs/DEPLOY.md) has the steps and the CI/CD pipelines (Vercel for the web app, Render for
+`services/node`). **Judges:** [docs/JUDGES.md](docs/JUDGES.md) is a wallet walkthrough of every flow.
 
 Run it yourself against testnet: `pnpm --filter @runway/node start` (needs the keys in `.env` and
 `.env.agents.local`), then `pnpm --filter @runway/web dev`, or `pnpm --filter @runway/scripts testnet-e2e` for the

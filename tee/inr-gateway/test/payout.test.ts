@@ -80,6 +80,19 @@ describe("payout worker", () => {
   });
 });
 
+describe("unreadable beneficiary", () => {
+  it("fails the payout (refund) when the blob was sealed under another app key", async () => {
+    const g = new FakeGateway();
+    g.addPayout("9", "priya.test", 20n);
+    g.blobs.set(
+      "priya.test",
+      sealBlob(new Uint8Array(32).fill(9), "priya.test", { fund_account_id: "fa", masked: "m", mode: "UPI" }),
+    );
+    await payoutTick(payoutDeps(g));
+    expect(g.payouts.get("9")).toMatchObject({ status: "Failed", failure_reason: "beneficiary_unreadable" });
+  });
+});
+
 describe("E21: beneficiary blob", () => {
   it("round-trips, is bound to the account, and plaintext never reaches the logs", async () => {
     const b = { fund_account_id: "fa_123", masked: "pr***@okaxis", mode: "UPI" as const };
