@@ -4,7 +4,10 @@ Runway runs on **NEAR testnet**. Every payment is SIMULATED: mock USDC, and a mo
 press "Simulate success" instead of paying. Nothing here moves real money.
 
 **Web app:** `<Vercel URL>` · **Exit page (IPFS):**
-https://ipfs.io/ipfs/bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4
+https://ipfs.filebase.io/ipfs/bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4
+
+Any IPFS gateway serves the exit page; that one serves it directly. `ipfs.io/ipfs/<CID>` also works in a
+browser (it loads through a service worker), and Pinata's free public gateway refuses HTML pages.
 
 The backend sleeps when idle (free hosting). If a page says the agent is unavailable, wait a minute and
 reload.

@@ -40,7 +40,10 @@ async function main() {
     throw new Error(`Pinata upload failed: HTTP ${res.status} ${JSON.stringify(body).slice(0, 300)}`);
   const cid = body.data.cid;
   console.log(`✔ pinned exit.html (${html.length} bytes) → CID ${cid}`);
-  for (const g of [`https://ipfs.io/ipfs/${cid}`, `https://${cid}.ipfs.dweb.link`]) console.log(`  ${g}`);
+  // ipfs.io and dweb.link now answer scripts with 429 and open pages only in a browser (service worker);
+  // Pinata's free public gateway refuses HTML. Filebase's gateway serves the page directly.
+  for (const g of [`https://ipfs.filebase.io/ipfs/${cid}`, `https://ipfs.io/ipfs/${cid}`])
+    console.log(`  ${g}`);
 
   if (existsSync(OUT)) {
     const rec = JSON.parse(readFileSync(OUT, "utf8")) as Record<string, unknown>;
