@@ -26,6 +26,8 @@ const KEEPER = process.env.KEEPER_ACCOUNT_ID ?? `keeper.${R}`;
 const profile = profiles.testnet;
 const d = deploymentFor(R);
 const verifyOnly = process.argv.includes("--verify");
+const EMPTY_CODE = "11111111111111111111111111111111";
+const HAVE_WASM = existsSync(join(ROOT_DIR, "res", "CODE_HASHES.txt"));
 
 const ACCOUNTS = {
   token: d.token,
@@ -65,6 +67,8 @@ interface Record_ {
   accounts: typeof ACCOUNTS;
   settlement_priya: string;
   code_hashes: Record<string, string>;
+  /** The settlement wasm the factory embeds (for --verify without a local build). */
+  settlement_code_hash?: string;
   steps: Record<string, string>;
   updated_at: string;
 }
@@ -141,14 +145,25 @@ async function main() {
     inr: args.inr,
   };
   for (const k of ["token", "factory", "credit", "inr"] as const) {
-    const code = wasm(WASM[k]!);
-    const hash = codeHash(code);
+    // Without a local build (CI --verify), compare against the hashes recorded at deployment.
+    const hash = HAVE_WASM ? codeHash(wasm(WASM[k]!)) : record.code_hashes[ACCOUNTS[k]];
+    if (!hash) throw new Error("res/ is missing and deployments/testnet.json has no hash: run make build");
     record.code_hashes[ACCOUNTS[k]] = hash;
     const a = await acc(k);
     await step(
       `deploy ${ACCOUNTS[k]}`,
-      async () => (await a.state()).code_hash === hash,
-      async () => ((await a.deployContract(code)) as { transaction: { hash: string } }).transaction.hash,
+      async () => {
+        const live = (await a.state()).code_hash;
+        if (live === hash) return true;
+        // Redeploying over existing code only works if the new code reads the old state, so it is opt-in.
+        if (live !== EMPTY_CODE && !process.argv.includes("--upgrade"))
+          throw new Error(
+            `${ACCOUNTS[k]} runs other code (${live}); pass --upgrade to replace it (state must stay compatible)`,
+          );
+        return false;
+      },
+      async () =>
+        ((await a.deployContract(wasm(WASM[k]!))) as { transaction: { hash: string } }).transaction.hash,
     );
     const viewMethod = k === "token" ? "get_owner" : k === "factory" ? "required_deposit" : "get_config";
     await step(
@@ -353,6 +368,7 @@ async function main() {
   // 8. checks (also the whole of --verify)
   const settlement = `priya.${d.factory}`;
   const factoryHash = await view<string>(root, d.factory, "get_settlement_code_hash");
+  if (HAVE_WASM) record.settlement_code_hash = factoryHash;
   const sAcc = await c.account(settlement);
   const sState = await sAcc.state();
   const keys = await sAcc.getAccessKeys();
@@ -362,7 +378,15 @@ async function main() {
     "get_config",
   );
   const limits = await view<Record<string, unknown>>(root, d.inr, "get_limits");
-  const expected = readFileSync(join(ROOT_DIR, "res", "CODE_HASHES.txt"), "utf8");
+  const expected = HAVE_WASM
+    ? readFileSync(join(ROOT_DIR, "res", "CODE_HASHES.txt"), "utf8")
+    : // No local build (e.g. CI verify): the hashes recorded at deploy time, in CODE_HASHES.txt's format.
+      [
+        ...Object.entries(WASM).map(
+          ([k, id]) => `${record.code_hashes[ACCOUNTS[k as keyof typeof ACCOUNTS]]}  ${id}.wasm`,
+        ),
+        `${record.settlement_code_hash ?? ""}  runway_settlement.wasm`,
+      ].join("\n");
   const checks: [boolean, string][] = [
     [sState.code_hash === factoryHash, `${settlement} code hash ${sState.code_hash} = factory's`],
     [expected.includes(factoryHash), "factory settlement hash is in res/CODE_HASHES.txt"],

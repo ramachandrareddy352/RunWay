@@ -24,13 +24,27 @@ async function main() {
     console.log(`✔ created ${id} with ${opt("near", 4)} NEAR`);
   } else console.log(`✔ ${id} exists`);
   if ((await view(root, d.token, "storage_balance_of", { account_id: id })) === null) {
-    await call(root, d.token, "storage_deposit", { account_id: id, registration_only: true }, { deposit: near(0.0125), gas: 30n * TGAS });
+    await call(
+      root,
+      d.token,
+      "storage_deposit",
+      { account_id: id, registration_only: true },
+      { deposit: near(0.0125), gas: 30n * TGAS },
+    );
     console.log("✔ registered with mock USDC");
   }
   const amount = usdc(opt("usdc", 1_000));
-  const r = await call(await c.account(KEEPER), d.token, "mint", { account_id: id, amount: String(amount) }, { gas: 30n * TGAS });
+  const r = await call(
+    await c.account(KEEPER),
+    d.token,
+    "mint",
+    { account_id: id, amount: String(amount) },
+    { gas: 30n * TGAS },
+  );
   console.log(`✔ minted ${opt("usdc", 1_000)} mock USDC (tx ${r.hash})`);
-  console.log(`\nKey file (import its private_key into a testnet wallet): ~/.near-credentials/testnet/${id}.json`);
+  console.log(
+    `\nKey file (import its private_key into a testnet wallet): ~/.near-credentials/testnet/${id}.json`,
+  );
 }
 
 main().catch((e: unknown) => {
