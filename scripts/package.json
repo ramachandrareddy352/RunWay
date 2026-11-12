@@ -12,7 +12,8 @@
     "deploy-testnet": "tsx --env-file-if-exists=../.env deploy-testnet.ts",
     "testnet-e2e": "tsx --env-file-if-exists=../.env --env-file-if-exists=../.env.agents.local testnet-e2e.ts",
     "pin-exit": "tsx --env-file-if-exists=../.env pin-exit.ts",
-    "make-tester": "tsx --env-file-if-exists=../.env make-tester.ts"
+    "make-tester": "tsx --env-file-if-exists=../.env make-tester.ts",
+    "ci-keys": "tsx ci-keys.ts"
   },
   "dependencies": {
     "@runway/agent-kit": "workspace:*",

@@ -37,3 +37,5 @@ Thumbs.db
 /RUNWAY_DESIGN.md
 /BUILD_PLAN.md
 /hackathon.md
+# Local-only notes and keys (never commit)
+local/
