@@ -3,7 +3,7 @@
 // (~/.near-credentials/testnet/<account>.json), from where it can be imported into a wallet.
 //   pnpm --filter @runway/scripts make-tester [name] [--near 4] [--usdc 1000]
 import { deploymentFor, usdc } from "@runway/config";
-import { call, chainFor, near, TGAS, view } from "./lib/near.js";
+import { call, chainFor, near, testnetRpcs, TGAS, view } from "./lib/near.js";
 
 const R = process.env.RUNWAY_ROOT ?? "runway-rama.testnet";
 const KEEPER = process.env.KEEPER_ACCOUNT_ID ?? `keeper.${R}`;
@@ -16,7 +16,7 @@ const id = `${name}.${R}`;
 const d = deploymentFor(R);
 
 async function main() {
-  const c = await chainFor("testnet", process.env.NEAR_RPC_URL ?? "https://rpc.testnet.fastnear.com");
+  const c = await chainFor("testnet", testnetRpcs());
   const root = await c.account(R);
   if (!(await c.exists(id))) {
     const kp = await c.newKey(id);

@@ -10,6 +10,7 @@ import {
   keySigner,
   localKeySource,
   NonceCache,
+  retry,
   rpcReader,
   safeLogger,
   SessionKeys,
@@ -83,7 +84,7 @@ export async function createGateway(
   if (e.GATEWAY_AGENT_ACCOUNT_ID && e.GATEWAY_AGENT_PRIVATE_KEY) {
     const k = await keySigner({
       networkId: "testnet",
-      nodeUrl: ep.rpcs[0]!,
+      nodeUrl: ep.signingRpcs ?? ep.rpcs,
       accountId: e.GATEWAY_AGENT_ACCOUNT_ID,
       privateKey: e.GATEWAY_AGENT_PRIVATE_KEY,
       contractId: ep.ids.inr,
@@ -104,14 +105,24 @@ export async function createGateway(
     signer = shade.signer;
     registered = shade.registered;
   }
-  if (!(await registered())) log.warn("agent_not_registered", { agent: signer.accountId() });
+  // One failed RPC request at boot must not crash the service: these steps retry with backoff.
+  const onRetry = (source: string) => (err: unknown, count: number) =>
+    log.warn("startup_retry", {
+      source,
+      count,
+      code: (err as Error).name,
+      status:
+        typeof (err as { cause?: unknown }).cause === "number" ? (err as { cause: number }).cause : undefined,
+    });
+  if (!(await retry(registered, { onRetry: onRetry("check_registration") })))
+    log.warn("agent_not_registered", { agent: signer.accountId() });
 
   const keys =
     e.TEE === "1"
       ? dstackKeySource()
       : localKeySource(e.AGENT_DERIVATION_PATH ?? "runway-local-inr-gateway-key-v1");
   const session = new SessionKeys(signer);
-  await session.rotate();
+  await retry(() => session.rotate(), { onRetry: onRetry("first_session_key") });
   const stopRotation = session.start((err) =>
     log.warn("session_rotate_failed", { code: (err as Error).name }),
   );

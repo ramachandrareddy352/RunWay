@@ -106,6 +106,14 @@ pnpm --filter @runway/scripts make-tester <name>        # a funded tester accoun
 `deployments/testnet.json` records accounts, code hashes and transactions; `.env.agents.local` (git-ignored)
 gets the agent keys; `local/TESTNET_ACCOUNTS.md` (git-ignored) lists every account and key.
 
+## Troubleshooting the backend
+
+| Log line | Cause | What happens now |
+|---|---|---|
+| `ProviderError … "code": -429, "Rate limits exceeded" … fastnear` | Free RPCs rate-limit by IP, and cloud hosts share IPs | Verified reads use dRPC + ZAN (FastNEAR is a signing fallback only). Reads retry an RPC that answers 429/5xx, transactions move to the next RPC, and startup retries with backoff (`startup_retry` lines) instead of exiting |
+| `KEEPER_ACCOUNT_ID` … `Required` | A secret wasn't entered in the Render dashboard | Add it under the service's Environment tab, then **Manual Deploy** |
+| `agent_not_registered` | The agent key belongs to an account the contract doesn't list | Check `UNDERWRITER_/GATEWAY_AGENT_ACCOUNT_ID` match `.env.agents.local` |
+
 ## Running everything locally
 
 ```bash

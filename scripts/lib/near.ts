@@ -2,7 +2,9 @@
 // (~/.near-credentials/<network>/<account>.json); new accounts' keys are saved there too.
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { connect, KeyPair, keyStores, type Account, type Near } from "near-api-js";
+import { profiles, signingRpcUrls } from "@runway/config";
+import { failover } from "@runway/sdk";
+import { connect, KeyPair, keyStores, providers, type Account, type Near } from "near-api-js";
 
 export const TGAS = 10n ** 12n;
 export const NEAR = 10n ** 24n;
@@ -25,13 +27,21 @@ export interface Chain {
   newKey(id: string): Promise<KeyPair>;
 }
 
+/** NEAR_RPC_URL if set, else every testnet RPC in order: a request moves to the next one when an RPC
+ * is unavailable (HTTP 429/5xx, as free RPCs answer shared CI and cloud IPs). */
+export const testnetRpcs = (): string[] =>
+  process.env.NEAR_RPC_URL ? [process.env.NEAR_RPC_URL] : signingRpcUrls(profiles.testnet);
+
 export async function chainFor(
   networkId: string,
-  nodeUrl: string,
+  rpcs: string | string[],
   keyDir = join(homedir(), ".near-credentials"),
 ): Promise<Chain> {
   const keyStore = new keyStores.UnencryptedFileSystemKeyStore(keyDir);
-  const n = await connect({ networkId, nodeUrl, keyStore } as Parameters<typeof connect>[0]);
+  const urls = [rpcs].flat();
+  const nodeUrl = urls[0]!;
+  const provider = failover(urls.map((url) => new providers.JsonRpcProvider({ url })));
+  const n = await connect({ networkId, nodeUrl, keyStore, provider } as Parameters<typeof connect>[0]);
   return {
     near: n,
     keyStore,

@@ -15,12 +15,13 @@ import { fileURLToPath } from "node:url";
 import { deploymentFor, initArgs, profiles, usdc } from "@runway/config";
 import { defaultPpid, mockAttestation, mockMeasurements } from "@runway/config/fixtures";
 import { base58Encode } from "@runway/sdk";
-import { call, chainFor, near, TGAS, view, type Chain } from "./lib/near.js";
+import { call, chainFor, near, testnetRpcs, TGAS, view, type Chain } from "./lib/near.js";
 
 const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT_DIR, "deployments", "testnet.json");
 const AGENT_ENV = join(ROOT_DIR, ".env.agents.local");
-const NODE_URL = process.env.NEAR_RPC_URL ?? "https://rpc.testnet.fastnear.com";
+const RPCS = testnetRpcs();
+const NODE_URL = RPCS[0]!;
 const R = process.env.RUNWAY_ROOT ?? "runway-rama.testnet";
 const KEEPER = process.env.KEEPER_ACCOUNT_ID ?? `keeper.${R}`;
 const profile = profiles.testnet;
@@ -112,7 +113,7 @@ async function step(
 }
 
 async function main() {
-  const c: Chain = await chainFor("testnet", NODE_URL);
+  const c: Chain = await chainFor("testnet", RPCS);
   for (const id of [R, KEEPER])
     if (!(await c.hasKey(id))) throw new Error(`no key for ${id} in ~/.near-credentials/testnet`);
   const root = await c.account(R);

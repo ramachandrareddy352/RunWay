@@ -1,6 +1,7 @@
 // The keeper's view of the chain. Everything it does is permissionless (`settle`, `check_loan`)
 // except minting mock USDC for SIMULATED testnet payments (the keeper owns the mock token).
-import { Account, connect, KeyPair, keyStores } from "near-api-js";
+import { failover } from "@runway/sdk";
+import { Account, connect, KeyPair, keyStores, providers } from "near-api-js";
 
 type KeyPairString = Parameters<typeof KeyPair.fromString>[0];
 
@@ -21,7 +22,8 @@ const TGAS = 10n ** 12n;
 
 export interface NearChainConfig {
   networkId: string;
-  nodeUrl: string;
+  /** One RPC, or several tried in order when one is unavailable (see `failover` in @runway/sdk). */
+  nodeUrl: string | string[];
   keeperId: string;
   keeperKey: string;
   credit: string;
@@ -32,7 +34,9 @@ export async function nearChain(c: NearChainConfig): Promise<Chain> {
   const keyStore = new keyStores.InMemoryKeyStore();
   await keyStore.setKey(c.networkId, c.keeperId, KeyPair.fromString(c.keeperKey as KeyPairString));
   // near-api-js 5's re-exported NearConfig doesn't resolve under NodeNext, so the type is asserted.
-  const near = await connect({ networkId: c.networkId, nodeUrl: c.nodeUrl, keyStore } as Parameters<
+  const urls = [c.nodeUrl].flat();
+  const provider = failover(urls.map((url) => new providers.JsonRpcProvider({ url })));
+  const near = await connect({ networkId: c.networkId, nodeUrl: urls[0], keyStore, provider } as Parameters<
     typeof connect
   >[0]);
   const keeper: Account = await near.account(c.keeperId);

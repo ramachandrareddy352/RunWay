@@ -2,7 +2,7 @@
 //   Reader: dual-RPC reads pinned to one final block (design §8.4 step 2); any disagreement aborts.
 //   AgentSigner: calls on the agent contract, signed by the agent account (ShadeClient in a TEE or
 //   local mode; a plain key-backed account in the sandbox harness).
-import { agreedHeight, viewAgreed, type RpcOptions } from "@runway/sdk";
+import { agreedHeight, rpcCall, viewAgreed, type RpcOptions } from "@runway/sdk";
 
 export interface Snapshot {
   height: number;
@@ -35,15 +35,14 @@ export function rpcReader(rpc: RpcOptions): Reader {
 }
 
 async function blockTimestampSec(rpc: RpcOptions, height: number): Promise<number> {
-  const f = (rpc.fetch ?? globalThis.fetch) as unknown as typeof fetch;
-  const res = await f(rpc.rpcs[0]!, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ jsonrpc: "2.0", id: "runway", method: "block", params: { block_id: height } }),
-  });
-  const body = (await res.json()) as { result?: { header: { timestamp_nanosec: string } } };
-  if (!body.result) throw new Error("block lookup failed");
-  return Number(BigInt(body.result.header.timestamp_nanosec) / 1_000_000_000n);
+  const b = await rpcCall<{ header: { timestamp_nanosec: string } } | undefined>(
+    rpc.rpcs[0]!,
+    "block",
+    { block_id: height },
+    rpc.fetch,
+  );
+  if (!b) throw new Error("block lookup failed");
+  return Number(BigInt(b.header.timestamp_nanosec) / 1_000_000_000n);
 }
 
 export interface CallOptions {

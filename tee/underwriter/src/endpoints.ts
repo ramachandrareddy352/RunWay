@@ -5,12 +5,22 @@
 // The sandbox is the exception: it is a throwaway local chain whose RPC URL and accounts change on
 // every run, it is never measured, and `requires_tee = false` there.
 
-import { deploymentFor, profiles, TESTNET_ROOT, type Network, type Profile } from "@runway/config";
+import {
+  deploymentFor,
+  profiles,
+  signingRpcUrls,
+  TESTNET_ROOT,
+  type Network,
+  type Profile,
+} from "@runway/config";
 
 export interface Endpoints {
   network: Network;
   profile: Profile;
+  /** Reads that gate an action must agree on all of these. */
   rpcs: string[];
+  /** RPCs the agent's transactions may go through (default `rpcs`). */
+  signingRpcs?: string[];
   credit: string;
   factory: string;
   inr: string;
@@ -33,6 +43,7 @@ export function testnetEndpoints(): Endpoints {
     network: "testnet",
     profile: profiles.testnet,
     rpcs: profiles.testnet.rpcUrls,
+    signingRpcs: signingRpcUrls(profiles.testnet),
     credit: d.credit,
     factory: d.factory,
     inr: d.inr,

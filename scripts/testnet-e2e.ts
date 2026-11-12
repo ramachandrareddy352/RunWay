@@ -33,7 +33,7 @@ import {
   type ServedSession,
   type Viewer,
 } from "@runway/sdk";
-import { call, chainFor, TGAS } from "./lib/near.js";
+import { call, chainFor, testnetRpcs, TGAS } from "./lib/near.js";
 
 const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const arg = (name: string, d: string) => {
@@ -175,7 +175,7 @@ async function payoutsFor(account: string): Promise<PayoutRequest[]> {
 }
 
 async function main() {
-  const c = await chainFor("testnet", rpcs[0]!);
+  const c = await chainFor("testnet", testnetRpcs());
   const keyOf = async (id: string) => {
     const k = await c.keyStore.getKey("testnet", id);
     if (!k) throw new Error(`no key for ${id} in ~/.near-credentials/testnet`);
