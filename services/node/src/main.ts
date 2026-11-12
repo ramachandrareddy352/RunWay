@@ -15,6 +15,21 @@ import { cors } from "hono/cors";
 const port = Number(process.env.PORT ?? 8787);
 const env = process.env;
 
+// A rejected promise in a background loop (an RPC answering HTTP 429, say) is logged, not fatal: the
+// keeper, the payout worker and session rotation all try again on their next tick. Only the error's
+// name and HTTP status are logged, never its message.
+process.on("unhandledRejection", (err) => {
+  const e = err as { name?: unknown; cause?: unknown } | undefined;
+  console.error(
+    JSON.stringify({
+      level: "error",
+      event: "unhandled_rejection",
+      code: typeof e?.name === "string" ? e.name : "unknown",
+      status: typeof e?.cause === "number" ? e.cause : undefined,
+    }),
+  );
+});
+
 // `||`, not `??`: a blank variable counts as unset.
 const api = await createApiRuntime({ ...env, DATABASE_PATH: env.DATABASE_PATH || "./data/runway.sqlite" });
 const underwriter = await createUnderwriter(env);

@@ -78,7 +78,10 @@ export interface Profile {
   time: TimeParams;
   /** Where the underwriter reads routed revenue from. */
   revenueSource: "sandbox-buckets" | "testnet-buckets" | "1click-verified";
+  /** The RPCs whose answers must agree for reads that gate an action (two independent operators). */
   rpcUrls: string[];
+  /** Extra RPCs for sending transactions only, tried when the `rpcUrls` ones are unavailable. */
+  fallbackRpcUrls: string[];
   /** INR gateway limits and float (BUILD_PLAN §10.1). */
   gateway: GatewayProfile;
 }
@@ -146,6 +149,7 @@ export const profiles: Record<Network, Profile> = {
     time: { periodSec: 3_600, withdrawCooldownSec: 5, offerTtlSec: 600, policyTimelockSec: 0 },
     revenueSource: "sandbox-buckets",
     rpcUrls: [],
+    fallbackRpcUrls: [],
     gateway: gatewayProfile(0, usdc(1_000)),
   },
   testnet: {
@@ -160,9 +164,12 @@ export const profiles: Record<Network, Profile> = {
     time: { periodSec: 300, withdrawCooldownSec: 120, offerTtlSec: 3_600, policyTimelockSec: 600 },
     revenueSource: "testnet-buckets",
     gateway: gatewayProfile(50, usdc(5_000)),
-    // Two independent operators (BUILD_PLAN §8.1), both on https://docs.near.org/api/rpc/providers.
-    // rpc.testnet.near.org was dropped on 2026-11-12: it answers HTTP 429 "THIS ENDPOINT IS DEPRECATED".
-    rpcUrls: ["https://rpc.testnet.fastnear.com", "https://near-testnet.drpc.org"],
+    // Two independent operators (BUILD_PLAN §8.1), both on https://docs.near.org/api/rpc/providers and
+    // both open to browsers (CORS). rpc.testnet.near.org was dropped on 2026-11-12 (HTTP 429 "THIS
+    // ENDPOINT IS DEPRECATED"). FastNEAR moved to the fallbacks the same day: it rate-limits the shared
+    // IPs of cloud hosts (HTTP 429 on Render), which crashed the hosted backend at startup.
+    rpcUrls: ["https://near-testnet.drpc.org", "https://api.zan.top/near-testnet"],
+    fallbackRpcUrls: ["https://rpc.testnet.fastnear.com", "https://testnet-rpc.intea.rs"],
   },
   mainnet: {
     network: "mainnet",
@@ -194,8 +201,12 @@ export const profiles: Record<Network, Profile> = {
       maxPayoutUsdc: usdc(5),
     },
     rpcUrls: ["https://rpc.mainnet.fastnear.com", "https://rpc.mainnet.near.org"],
+    fallbackRpcUrls: [],
   },
 };
+
+/** Every RPC a transaction may be sent through, in order: the agreeing pair, then the fallbacks. */
+export const signingRpcUrls = (p: Profile): string[] => [...new Set([...p.rpcUrls, ...p.fallbackRpcUrls])];
 
 /** Policy as the credit contract's JSON expects it. */
 export function policyJson(p: Policy): Record<string, unknown> {

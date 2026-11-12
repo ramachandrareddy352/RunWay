@@ -2,6 +2,7 @@ export * from "./base58.js";
 export * from "./bytes.js";
 export * from "./commit.js";
 export * from "./contracts.js";
+export * from "./failover.js";
 export * from "./nep413.js";
 export * from "./oneclick.js";
 export * from "./protocol.js";

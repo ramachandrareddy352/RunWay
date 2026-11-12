@@ -27,7 +27,6 @@ permissions:
 env:
   RUNWAY_ROOT: runway-rama.testnet
   KEEPER_ACCOUNT_ID: keeper.runway-rama.testnet
-  NEAR_RPC_URL: https://rpc.testnet.fastnear.com
 
 jobs:
   run:

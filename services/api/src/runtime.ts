@@ -1,7 +1,7 @@
 // Builds the API and starts its keeper loop (every 15 s): used by server.ts and by services/node.
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
-import { deploymentFor, profiles } from "@runway/config";
+import { deploymentFor, profiles, signingRpcUrls } from "@runway/config";
 import { getStatus } from "@runway/sdk";
 import type { Hono } from "hono";
 import { z } from "zod";
@@ -39,8 +39,9 @@ export async function createApiRuntime(
     Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined && v.trim() !== "")),
   );
   const dep = deploymentFor(e.RUNWAY_ROOT);
-  const nodeUrl = e.NEAR_RPC_URL ?? profiles[e.NEAR_NETWORK].rpcUrls[0];
-  if (!nodeUrl) throw new Error("no RPC URL: set NEAR_RPC_URL");
+  // The keeper's transactions go through the first available RPC (HTTP 429/5xx moves to the next).
+  const nodeUrl = e.NEAR_RPC_URL ? [e.NEAR_RPC_URL] : signingRpcUrls(profiles[e.NEAR_NETWORK]);
+  if (nodeUrl.length === 0) throw new Error("no RPC URL: set NEAR_RPC_URL");
   if (e.DATABASE_PATH !== ":memory:") mkdirSync(dirname(e.DATABASE_PATH), { recursive: true });
   const store = new PaymentStore(e.DATABASE_PATH);
   const chain = await nearChain({

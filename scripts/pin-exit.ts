@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { deploymentFor } from "@runway/config";
-import { call, chainFor, view } from "./lib/near.js";
+import { call, chainFor, testnetRpcs, view } from "./lib/near.js";
 
 const ROOT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..");
 const HTML = join(ROOT_DIR, "apps", "exit", "dist", "exit.html");
@@ -49,7 +49,7 @@ async function main() {
   }
   if (process.argv.includes("--no-chain")) return;
   const d = deploymentFor(R);
-  const c = await chainFor("testnet", process.env.NEAR_RPC_URL ?? "https://rpc.testnet.fastnear.com");
+  const c = await chainFor("testnet", testnetRpcs());
   const root = await c.account(R);
   if ((await view<string | null>(root, d.credit, "get_exit_app_cid")) === cid) {
     console.log("✔ credit.get_exit_app_cid already set");
