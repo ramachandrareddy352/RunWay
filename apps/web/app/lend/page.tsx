@@ -11,11 +11,12 @@ import {
   collect,
   collectStatus,
   depositUsdc,
+  faucet,
   payoutsFor,
   requestWithdraw,
   storageDeposit,
 } from "../../lib/actions";
-import { credit, gateway, storageOf } from "../../lib/chain";
+import { credit, gateway, storageOf, tokenBalance } from "../../lib/chain";
 import { DEPLOYMENT, PROFILE } from "../../lib/env";
 import { bps, fmtUsdc, parseUsdc } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
@@ -58,8 +59,12 @@ export default function LendPage() {
   const vault = useAsync(() => credit.vault(), []);
   const mine = useAsync(async () => {
     if (!account) return null;
-    const [s, storage] = await Promise.all([credit.shares(account), storageOf(DEPLOYMENT.credit, account)]);
-    return { shares: BigInt(s ?? "0"), storage: storage !== null };
+    const [s, storage, usdcBal] = await Promise.all([
+      credit.shares(account),
+      storageOf(DEPLOYMENT.credit, account),
+      tokenBalance(account).catch(() => "0"),
+    ]);
+    return { shares: BigInt(s ?? "0"), storage: storage !== null, usdc: BigInt(usdcBal ?? "0") };
   }, [account]);
   const requests = useAsync(
     async () => Promise.all(ids.map((id) => credit.withdrawRequest(id))),
@@ -141,6 +146,14 @@ export default function LendPage() {
             }
           >
             <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span>
+                  Wallet: <span className="font-mono">{fmtUsdc(mine.data?.usdc ?? 0n)}</span> mock USDC
+                </span>
+                <Button variant="secondary" disabled={busy} onClick={() => run(() => faucet(account))}>
+                  Get 1,000 test USDC
+                </Button>
+              </div>
               {mine.data && !mine.data.storage ? (
                 <Button
                   onClick={() => run(() => storageDeposit(w, DEPLOYMENT.credit, account))}

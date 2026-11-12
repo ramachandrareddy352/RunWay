@@ -86,6 +86,17 @@ export async function simulatePayment(handle: string, amount: bigint): Promise<{
   return { depositAddress: body.depositAddress };
 }
 
+/** SIMULATED test USDC (testnet only): 1,000 mock USDC to the account, once per 10 minutes. */
+export async function faucet(accountId: string): Promise<void> {
+  const res = await fetch(`${API_URL}/dev/faucet`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ account_id: accountId }),
+  });
+  const body = (await res.json()) as { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `faucet failed (HTTP ${res.status})`);
+}
+
 export async function logPayment(handle: string, depositAddress: string): Promise<void> {
   await fetch(`${API_URL}/payments`, {
     method: "POST",

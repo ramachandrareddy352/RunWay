@@ -21,6 +21,13 @@ const handle = z.string().regex(/^[a-z0-9]{2,32}$/);
 // 1Click deposit addresses are chain-specific; accept the printable set they use.
 const depositAddress = z.string().regex(/^[A-Za-z0-9._:-]{8,128}$/);
 const MAX_SIMULATED = 100_000n * 1_000_000n; // 100k USDC per simulated payment
+const FAUCET_AMOUNT = 1_000n * 1_000_000n; // 1,000 mock USDC
+const FAUCET_EVERY_MS = 10 * 60_000;
+const nearAccount = z
+  .string()
+  .min(2)
+  .max(64)
+  .regex(/^(([a-zd]+[-_])*[a-zd]+.)*([a-zd]+[-_])*[a-zd]+$/);
 
 export function createApp(d: AppDeps): Hono {
   const app = new Hono();
@@ -92,6 +99,27 @@ export function createApp(d: AppDeps): Hono {
   // SIMULATED (testnet) payment: mints mock USDC to the merchant's settlement account; the keeper
   // then settles it like any other successful payment. Never mounted on mainnet (test A4).
   if (d.network !== "mainnet") {
+    // Test faucet: 1,000 mock USDC to a testnet account, at most once per account per 10 minutes.
+    const lastFaucet = new Map<string, number>();
+    app.post("/dev/faucet", async (c) => {
+      if (rateLimited(clientOf(c))) return c.json({ error: "rate limited" }, 429);
+      const parsed = z
+        .object({ account_id: nearAccount })
+        .strict()
+        .safeParse(await c.req.json().catch(() => null));
+      if (!parsed.success) return c.json({ error: "bad request" }, 400);
+      const id = parsed.data.account_id;
+      if (now() - (lastFaucet.get(id) ?? -Infinity) < FAUCET_EVERY_MS)
+        return c.json({ error: "this account got test USDC in the last 10 minutes" }, 429);
+      try {
+        const tx = await d.chain.faucet(id, FAUCET_AMOUNT);
+        lastFaucet.set(id, now());
+        return c.json({ ok: true, simulated: true, amount: FAUCET_AMOUNT.toString(), tx }, 201);
+      } catch {
+        return c.json({ error: "faucet failed (does the account exist on testnet?)" }, 400);
+      }
+    });
+
     app.post("/dev/simulate-payment", async (c) => {
       if (rateLimited(clientOf(c))) return c.json({ error: "rate limited" }, 429);
       const parsed = z

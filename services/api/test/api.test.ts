@@ -12,6 +12,7 @@ function fakeChain(merchants: Record<string, string> = { priya: "priya.pay.root.
     activeLoanIds: async () => ["2", "5"],
     checkLoan: async (id) => (calls.checkLoan.push(id), `tx-check-${id}`),
     mint: async (to, amount) => (calls.mint.push([to, amount]), `tx-mint-${calls.mint.length}`),
+    faucet: async (to, amount) => (calls.mint.push([to, amount]), `tx-faucet-${calls.mint.length}`),
   };
   return { chain, calls };
 }
@@ -53,6 +54,20 @@ describe("API", () => {
       settledTx: string;
     }[];
     expect(list[0]).toMatchObject({ kind: "upi", settledTx: "tx-settle-1" });
+  });
+
+  it("A6: the test faucet mints 1,000 mock USDC, once per account per 10 minutes, never on mainnet", async () => {
+    let t = 0;
+    const { chain, calls } = fakeChain();
+    const app = createApp({ store: new PaymentStore(), chain, network: "testnet", now: () => t });
+    expect((await app.fetch(post("/dev/faucet", { account_id: "judge.testnet" }))).status).toBe(201);
+    expect(calls.mint).toEqual([["judge.testnet", 1_000_000_000n]]);
+    expect((await app.fetch(post("/dev/faucet", { account_id: "judge.testnet" }))).status).toBe(429);
+    t += 10 * 60_000;
+    expect((await app.fetch(post("/dev/faucet", { account_id: "judge.testnet" }))).status).toBe(201);
+    expect((await app.fetch(post("/dev/faucet", { account_id: "Not Valid!" }))).status).toBe(400);
+    const main = createApp({ store: new PaymentStore(), chain, network: "mainnet" });
+    expect((await main.fetch(post("/dev/faucet", { account_id: "judge.testnet" }))).status).toBe(404);
   });
 
   it("A3: bad input → 400", async () => {
