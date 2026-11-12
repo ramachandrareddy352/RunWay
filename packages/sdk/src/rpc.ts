@@ -1,4 +1,5 @@
 import { fromUtf8, toBase64, utf8 } from "./bytes.js";
+import { rpcUnavailable } from "./failover.js";
 
 // Minimal NEAR JSON-RPC client with dual-RPC agreement (BUILD_PLAN T1.8).
 // Reads that matter (merchant settlement account, agent registration, buckets) are made against two
@@ -38,13 +39,33 @@ interface JsonRpcResponse<T> {
   error?: { message?: string; data?: unknown; cause?: unknown };
 }
 
+const RETRY_DELAYS_MS = [400, 1_200];
+
+/** One JSON-RPC call; retried twice when the RPC is unavailable (HTTP 429/5xx, network), never when
+ * the chain answers with an error. */
+export async function rpcCall<T>(url: string, method: string, params: unknown, f?: Fetch): Promise<T> {
+  return rpc<T>(url, method, params, f ?? (globalThis.fetch as unknown as Fetch));
+}
+
 async function rpc<T>(url: string, method: string, params: unknown, f: Fetch): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await rpcOnce<T>(url, method, params, f);
+    } catch (e) {
+      const delay = RETRY_DELAYS_MS[attempt];
+      if (delay === undefined || !rpcUnavailable(e)) throw e;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+async function rpcOnce<T>(url: string, method: string, params: unknown, f: Fetch): Promise<T> {
   const res = await f(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: "runway", method, params }),
   });
-  if (!res.ok) throw new Error(`${url} ${method}: HTTP ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(`${url} ${method}: HTTP ${res.status}`), { status: res.status });
   const body = (await res.json()) as JsonRpcResponse<T>;
   if (body.error) throw new Error(`${url} ${method}: ${JSON.stringify(body.error)}`);
   const result = body.result as T & { error?: string };
