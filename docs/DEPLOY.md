@@ -1,103 +1,134 @@
 # Deploying Runway (testnet)
 
-Everything is NEAR testnet with mock USDC and a simulated UPI provider (Amendment A1). Three pieces:
+Everything runs on NEAR testnet with mock USDC and a simulated UPI provider (Amendment A1).
 
-| Piece | What | Where |
+| Piece | Where | How it deploys |
 |---|---|---|
-| Contracts | mock USDC, factory, credit, INR gateway, demo accounts | NEAR testnet under `runway-rama.testnet` (done by `deploy-testnet`) |
-| `services/node` | API + keeper, underwriter agent, INR gateway agent, one port | any always-on Node 22 host, or your machine plus a tunnel |
-| `apps/web` | the Next.js app | Vercel (`apps/web/vercel.json`) |
-| `apps/exit` | single-file exit page | IPFS via Pinata (`pin-exit`), CID stored in `credit.get_exit_app_cid()` |
+| Contracts | NEAR testnet, `runway-rama.testnet` (live) | `deploy-testnet` (local, or the **Testnet** workflow) |
+| Backend `services/node` (API + keeper, underwriter, INR gateway) | Render free web service (`render.yaml`) | Render auto-deploys `main` after the GitHub checks pass |
+| Web `apps/web` | Vercel | Vercel's Git integration, or the **Deploy web** workflow |
+| Exit page `apps/exit` | IPFS via Pinata (live) | `pin-exit` (local, or the **Testnet** workflow) |
 
-## 1. Contracts (already deployed)
+## Pipelines
 
-```bash
-make build                                              # res/*.wasm + res/CODE_HASHES.txt
-pnpm --filter @runway/scripts deploy-testnet            # idempotent: skips what exists
-pnpm --filter @runway/scripts deploy-testnet --verify   # checks only
-```
+| Workflow | Runs on | Does |
+|---|---|---|
+| `ci.yml` | every PR and push to `main` | Contracts (wasm build, fmt, clippy, unit tests) and TypeScript (typecheck, tests, format). Make these the required checks. |
+| `sandbox.yml` | PRs/pushes touching contracts, packages, scripts, services, tee | Sandbox integration tests and both demos |
+| `deploy-backend.yml` | PRs/pushes touching the backend | Builds the `services/node` image (so a broken image never deploys); optional deploy hook |
+| `deploy-web.yml` | pushes to `main` touching the web app | Vercel production deploy, only when `DEPLOY_WEB_WITH_ACTIONS=true` |
+| `testnet.yml` | manual (Actions → Testnet → Run workflow) | `verify`, `deploy`, `e2e` (against the hosted backend) or `pin-exit` |
 
-The script signs with near CLI's legacy keychain (`~/.near-credentials/testnet`) and needs the root and
-keeper keys there. It writes `deployments/testnet.json` (public: accounts, code hashes, transaction hashes)
-and `.env.agents.local` (secret: the two local-mode agent keys; git-ignored).
+Render deploys the backend by itself (`autoDeployTrigger: checksPass` in `render.yaml`), and Vercel deploys
+the web app by itself once the repo is connected. So for a normal push to `main`: CI runs, and when it
+passes Render and Vercel deploy. Contracts are never redeployed automatically: replacing live contract code
+needs a state-compatible build and `deploy-testnet --upgrade`.
 
-## 2. The node service
+## GitHub secrets and variables
 
-Environment: the root `.env` (see `.env.example`) plus `.env.agents.local`. Run locally:
+Settings → Secrets and variables → Actions.
 
-```bash
-pnpm --filter @runway/node start          # reads ../../.env and ../../.env.agents.local
-curl http://localhost:8787/               # {"ok":true,"routes":{"api":"/api","underwriter":"/uw","gateway":"/gw"},…}
-```
+| Name | Kind | Used by | Value |
+|---|---|---|---|
+| `TESTNET_KEYS_JSON` | secret | testnet.yml | One-line JSON `{"<account>": "ed25519:<key>", …}`. Ready-made in `local/github-secret-TESTNET_KEYS_JSON.txt` (git-ignored). |
+| `PINATA_JWT` | secret | testnet.yml (pin-exit) | your Pinata JWT |
+| `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | secrets | deploy-web.yml (optional) | Vercel → Account Settings → Tokens; org and project ids from `vercel link` (`.vercel/project.json`) |
+| `BACKEND_DEPLOY_HOOK_URL` | secret | deploy-backend.yml (optional) | Render → service → Settings → Deploy Hook |
+| `BACKEND_URL` | variable | testnet.yml (e2e), deploy-backend.yml | e.g. `https://runway-node.onrender.com` |
+| `DEPLOY_WEB_WITH_ACTIONS` | variable | deploy-web.yml | `true` only if you deploy the web app from Actions instead of Vercel's Git integration |
+| `DEPLOY_BACKEND_WITH_HOOK` | variable | deploy-backend.yml | `true` only for a host without Git auto-deploy |
 
-It needs, at minimum: `NEAR_NETWORK=testnet`, `RUNWAY_ROOT`, `KEEPER_ACCOUNT_ID`, `KEEPER_PRIVATE_KEY`
-(the keeper owns the mock token, so it can mint SIMULATED payments), `MOCK_WEBHOOK_SECRET`,
-`UNDERWRITER_AGENT_ACCOUNT_ID/PRIVATE_KEY`, `GATEWAY_AGENT_ACCOUNT_ID/PRIVATE_KEY`, and when hosted,
-`PUBLIC_URL=https://<your host>` (the SIMULATED UPI page links are built from it). Optional:
-`NEARAI_API_KEY` (verified statement reading), `NEARAI_DAILY_CALLS`, `DATABASE_PATH`,
-`GATEWAY_DATABASE_PATH` (SQLite files; keep them on a persistent disk).
+## Backend on Render
 
-The keeper (every 15 s) and the payout worker (every 10 s) are loops, so the host must stay awake. A free
-tier that sleeps stops settlements and payouts until the next request wakes it.
+1. Render → **New → Blueprint** → select this repository. Render reads `render.yaml`.
+2. Fill in the values it asks for (from `.env` and `.env.agents.local`):
 
-**Docker** (from the repo root):
+   | Variable | Value |
+   |---|---|
+   | `KEEPER_PRIVATE_KEY` | key of `keeper.runway-rama.testnet` |
+   | `UNDERWRITER_AGENT_PRIVATE_KEY` | key of `uwagent.runway-rama.testnet` |
+   | `GATEWAY_AGENT_PRIVATE_KEY` | key of `gwagent.runway-rama.testnet` |
+   | `NEARAI_API_KEY` | your NEAR AI key (optional; statements are skipped without it) |
 
-```bash
-docker build -f services/node/Dockerfile -t runway-node .
-docker run --env-file .env --env-file .env.agents.local -e PUBLIC_URL=https://<host> -p 8787:8787 -v runway-data:/app/data runway-node
-```
+   `MOCK_WEBHOOK_SECRET` and `AGENT_DERIVATION_PATH` are generated by Render. The account ids and
+   `INR_PROVIDER=mock` are already in the Blueprint, and the service finds its own public URL from
+   `RENDER_EXTERNAL_URL` (on another host, set `PUBLIC_URL`).
+3. Check `https://<service>.onrender.com/` → `{"ok":true, … "inr_provider":"mock"}`.
 
-**Your machine plus a free tunnel** (no account needed): `cloudflared tunnel --url http://localhost:8787`
-prints an `https://….trycloudflare.com` URL; use it as `PUBLIC_URL` and in the web app's settings. The
-URL changes each time the tunnel restarts.
+Free plan behaviour: it sleeps after 15 minutes without traffic and the next request wakes it in about a
+minute (the web app pings it when a page loads). While it sleeps the keeper and the payout worker
+don't run, so revenue buckets and ₹ payouts wait until it wakes. To keep it awake during judging, add a
+free uptime monitor (for example UptimeRobot, every 5 minutes) on `https://<service>.onrender.com/api/health`;
+one always-on service fits in the free plan's monthly hours. Its disk is wiped on restart; everything
+that matters is on-chain, and pending SIMULATED UPI collects are simply created again. **Run only one
+backend** with these agent keys at a time: a second copy (for example your laptop) would process the
+same payouts. A new `AGENT_DERIVATION_PATH` means UPI IDs registered before it must be registered again;
+payouts to them fail and refund the USDC instead of hanging. Keep Render's generated value: without
+the variable the agents fall back to a seed that is public in the source, which is fine only for
+local testing. UPI IDs registered while testing locally are therefore registered again on the hosted app.
 
-**Check it end to end on testnet** (about 30 minutes, because testnet revenue buckets are 300 s):
+Other hosts: any Docker host works (`docker build -f services/node/Dockerfile .`, port from `PORT`).
 
-```bash
-pnpm --filter @runway/scripts testnet-e2e    # with the node service running; writes deployments/testnet-e2e.json
-```
+## Web on Vercel
 
-## 3. Web app on Vercel
-
-1. Import the GitHub repository in Vercel.
-2. **Root Directory:** `apps/web`. Leave "Include files outside the root directory" on (the workspace
-   packages live in `packages/`). `apps/web/vercel.json` sets the install (only the web app's workspace
-   dependencies) and the build (`next build --webpack`).
+1. Vercel → **Add New → Project** → import the repository.
+2. **Root Directory: `apps/web`.** This is required: Vercel builds a Next.js app from the folder that
+   holds its `package.json` and `next.config.ts`, so a `vercel.json` at the repository root can't point it
+   at `apps/web`. Keep "Include files outside the root directory" on: the app imports `packages/*`.
+   `apps/web/vercel.json` then sets the install (only the web app's workspace packages) and the build
+   (`next build --webpack`).
 3. **Node.js version:** 22.x.
-4. **Environment variables** (all public):
+4. **Environment variables** (Production and Preview):
 
    | Name | Value |
    |---|---|
    | `NEXT_PUBLIC_NETWORK` | `testnet` |
    | `NEXT_PUBLIC_RUNWAY_ROOT` | `runway-rama.testnet` |
-   | `NEXT_PUBLIC_API_URL` | `https://<node host>/api` |
-   | `NEXT_PUBLIC_UNDERWRITER_URL` | `https://<node host>/uw` |
-   | `NEXT_PUBLIC_GATEWAY_URL` | `https://<node host>/gw` |
+   | `NEXT_PUBLIC_API_URL` | `https://<service>.onrender.com/api` |
+   | `NEXT_PUBLIC_UNDERWRITER_URL` | `https://<service>.onrender.com/uw` |
+   | `NEXT_PUBLIC_GATEWAY_URL` | `https://<service>.onrender.com/gw` |
 
-   The node host must be **https**: a Vercel (https) page can't call an `http://` API.
-5. Deploy. Check `/verify` first: both agents should show "session key matches chain".
+   `NEXT_PUBLIC_*` values are compiled into the build, so **redeploy after changing them**.
+5. Deploy, then open `/verify`: both agents should say "session key matches chain".
 
-Locally: copy `apps/web/.env.example` to `apps/web/.env.local` and run `pnpm --filter @runway/web dev`.
+Routes (`/pay/<handle>`, `/merchant`, `/audit/offer/<id>`, …) are Next.js App Router pages; no rewrites
+are needed.
 
-## 4. Exit page on IPFS
+## Contracts (already deployed)
 
 ```bash
-pnpm --filter @runway/exit build
-pnpm --filter @runway/scripts pin-exit     # needs PINATA_JWT; also calls credit.set_exit_app_cid
+make build
+pnpm --filter @runway/scripts deploy-testnet            # idempotent; refuses to replace live code
+pnpm --filter @runway/scripts deploy-testnet --verify   # checks only
+pnpm --filter @runway/scripts make-tester <name>        # a funded tester account (key in your keychain)
 ```
 
-## 5. Later: TEE (Phala) and live Razorpay
+`deployments/testnet.json` records accounts, code hashes and transactions; `.env.agents.local` (git-ignored)
+gets the agent keys; `local/TESTNET_ACCOUNTS.md` (git-ignored) lists every account and key.
+
+## Running everything locally
+
+```bash
+pnpm --filter @runway/node start     # backend on :8787 (reads .env and .env.agents.local)
+pnpm --filter @runway/web dev        # web app on :3000 (defaults point at the local backend)
+pnpm --filter @runway/exit dev       # exit page on :5173
+pnpm --filter @runway/scripts testnet-e2e -- --fresh   # scripted end-to-end run (~30 minutes)
+```
+
+Stop the hosted backend while you run it locally (see "Run only one backend").
+
+## Later: TEE (Phala) and live Razorpay
 
 - **TEE.** `requires_tee` is fixed when the credit contract is created, so a TEE deployment uses a fresh
   credit account (for example `credit2.runway-rama.testnet`) created with `requires_tee = true`, then
   `@runway/config` and the web app point at it. Run each agent image (`tee/underwriter`,
   `tee/inr-gateway`) on Phala with `TEE=1` and *without* the `*_AGENT_PRIVATE_KEY` variables: the agent
   then boots ShadeClient, whose implicit account registers with a real attestation. Approve the image's
-  measurements and assign the role with `approve_measurements` and `set_role` (owner). Set
-  `environment: TEE` and `deploy_to_phala.enabled: true` in its `deployment.yaml`, run `shade plan`, review
+  measurements and assign the role with `approve_measurements` and `set_role` (owner). In its
+  `deployment.yaml` set `environment: TEE` and `deploy_to_phala.enabled: true`, run `shade plan`, review
   it, then `shade deploy`.
-- **Razorpay.** Test mode can't simulate customer UPI QR payments, and RazorpayX signup was failing, so
+- **Razorpay.** Test mode can't simulate customer UPI QR payments and RazorpayX signup was failing, so
   the gateway uses the mock provider. When RazorpayX works: set `INR_PROVIDER=razorpay`, the
   `RAZORPAY_*` keys and `RAZORPAYX_ACCOUNT_NUMBER`, and add the webhook
-  `https://<node host>/gw/inr/webhook/razorpay` (events `qr_code.credited`, `payout.*`) in the Razorpay
+  `https://<backend>/gw/inr/webhook/razorpay` (events `qr_code.credited`, `payout.*`) in the Razorpay
   dashboard.
