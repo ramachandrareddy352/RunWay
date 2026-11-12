@@ -15,6 +15,55 @@ export default function Home() {
       <SimulatedBanner>
         This deployment runs on NEAR testnet with mock USDC and a simulated UPI provider.
       </SimulatedBanner>
+      <Card title="Try it on testnet (about 20 minutes)">
+        <ol className="list-decimal space-y-1 pl-5 text-sm">
+          <li>
+            Create a testnet wallet (Meteor or MyNearWallet, set to testnet) and get free testnet NEAR from
+            the{" "}
+            <a
+              className="text-accent underline"
+              href="https://near-faucet.io"
+              target="_blank"
+              rel="noreferrer"
+            >
+              NEAR faucet
+            </a>
+            . Registering a merchant locks about 2 NEAR.
+          </li>
+          <li>
+            <Link className="text-accent underline" href="/verify">
+              Verify
+            </Link>{" "}
+            the agents, then register a handle on{" "}
+            <Link className="text-accent underline" href="/merchant">
+              Merchant
+            </Link>
+            .
+          </li>
+          <li>
+            Pay your handle with SIMULATED USDC once in each of three 5-minute windows (the pay link is on the
+            merchant page).
+          </li>
+          <li>
+            Ask for an offer on{" "}
+            <Link className="text-accent underline" href="/merchant/capital">
+              Capital
+            </Link>
+            , accept it, and watch later payments repay it. Try the UPI tab and rupee payouts.
+          </li>
+          <li>
+            On{" "}
+            <Link className="text-accent underline" href="/lend">
+              Lend
+            </Link>
+            , get 1,000 test USDC, deposit, and withdraw after the cooldown. Check everything on{" "}
+            <Link className="text-accent underline" href="/audit">
+              Audit
+            </Link>
+            .
+          </li>
+        </ol>
+      </Card>
       <div className="grid gap-4 sm:grid-cols-2">
         <Card title="Merchants">
           <p className="text-sm">
