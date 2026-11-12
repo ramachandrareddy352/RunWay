@@ -53,13 +53,30 @@ The underwriter, the INR gateway agent, and the payment API and keeper in this d
 running in-process; only the signer differs (sandbox accounts instead of ShadeClient). `make sandbox-demo`
 runs the core loop alone. `make test` runs every contract, sandbox and TypeScript test.
 
-## Live demo
+## Live deployment (NEAR testnet)
 
-Not hosted yet. Deployment waits for the team's go-ahead (Amendment A1, step 3). Once deployed, the
-runbook ([BUILD_PLAN §8.2, §8.5](BUILD_PLAN.md#8-deployment-runbooks)) records every account and
-transaction in [docs/RUNBOOK.md](docs/RUNBOOK.md), and this section will list the web app, `/verify` and the
-exit-app CID. To run the web app against a deployment: `pnpm --filter @runway/web dev` with the
-`NEXT_PUBLIC_*` variables from [.env.example](.env.example).
+The contracts are deployed and seeded on testnet under `runway-rama.testnet`
+([deployments/testnet.json](deployments/testnet.json) lists every account, code hash and transaction):
+
+| Contract | Account | Explorer |
+|---|---|---|
+| Credit (vault, offers, loans) | `credit.runway-rama.testnet` | [NearBlocks](https://testnet.nearblocks.io/address/credit.runway-rama.testnet) |
+| Factory | `pay.runway-rama.testnet` | [NearBlocks](https://testnet.nearblocks.io/address/pay.runway-rama.testnet) |
+| INR gateway | `inr.runway-rama.testnet` | [NearBlocks](https://testnet.nearblocks.io/address/inr.runway-rama.testnet) |
+| Mock USDC | `musdc.runway-rama.testnet` | [NearBlocks](https://testnet.nearblocks.io/address/musdc.runway-rama.testnet) |
+| Demo merchant settlement (0 keys) | `priya.pay.runway-rama.testnet` | [NearBlocks](https://testnet.nearblocks.io/address/priya.pay.runway-rama.testnet) |
+
+Agents run in Shade local mode (`requires_tee = false`): `uwagent.runway-rama.testnet` (Underwriter) and
+`gwagent.runway-rama.testnet` (InrGateway). The exit page is pinned to IPFS as
+`bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4`
+([ipfs.io](https://ipfs.io/ipfs/bafybeiaybfhshzhm24gfgzly2zy5zd3lvecb5b3sj2agg4fheti2g6nns4)) and recorded in
+`credit.get_exit_app_cid()`. The hosted web app and node service URLs go here once they are deployed;
+[docs/DEPLOY.md](docs/DEPLOY.md) has the steps (Vercel for the web app, any always-on Node host for
+`services/node`).
+
+Run it yourself against testnet: `pnpm --filter @runway/node start` (needs the keys in `.env` and
+`.env.agents.local`), then `pnpm --filter @runway/web dev`, or `pnpm --filter @runway/scripts testnet-e2e` for the
+scripted end-to-end run.
 
 ## Do X → see Y
 
@@ -72,6 +89,8 @@ exit-app CID. To run the web app against a deployment: `pnpm --filter @runway/we
 | `pnpm --filter @runway/inr-gateway test` | Forged or re-serialised webhooks rejected (E16), mismatched payments not recorded (E17), a webhook delivered 3× records once (E18), a crash after `start_payout` pays exactly once (E20), the mainnet bundle contains no mock provider (E22) |
 | `pnpm --filter @runway/web test` | The pay page never shows a deposit address for a tampered quote (W1), the 7-status timeline (W2), chain minimums (W3), UPI checkout, ₹ lending and payout settings (W10–W12) |
 | `pnpm --filter @runway/underwriter exec tsx scripts/sp8-attestation.ts` | A live NEAR AI Cloud attestation (gateway + model) verified in Node: TDX quote, signer and nonce binding, RTMR3 replay, MRCONFIGID |
+| `pnpm --filter @runway/scripts testnet-e2e -- --fresh` (with `services/node` running) | The whole loop on NEAR testnet: revenue settled by the keeper, a sealed offer with its commitment verified, loan disbursed and repaid, a SIMULATED UPI sale at the live FX rate, rupee payouts Paid; ends `TESTNET E2E PASSED` |
+| `pnpm --filter @runway/underwriter exec tsx --env-file=../../.env scripts/nearai-live.ts` | One statement read by NEAR AI with verified private inference: attestations, signed response, receipt hash |
 | `/pay/<handle>` (after deployment) | The quote checklist goes green before anything can be paid; on testnet the quote is a labelled price preview and the payment is SIMULATED |
 | `/audit/offer/<id>` | The offer's hard bounds re-checked in the browser, the agent's role, the commitment recomputed from the merchant's sealed inputs, the settlement account's code hash and zero keys |
 

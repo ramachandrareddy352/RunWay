@@ -6,9 +6,8 @@ ARG NETWORK=testnet
 ENV NETWORK=${NETWORK} NODE_ENV=production
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.8.0 --activate
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json tsconfig.base.json ./
-COPY packages ./packages
-COPY tee/underwriter ./tee/underwriter
+# The whole workspace (pnpm's frozen lockfile lists every package); .dockerignore drops secrets and builds.
+COPY . .
 RUN pnpm install --frozen-lockfile --filter @runway/underwriter...
 USER node
 EXPOSE 8790

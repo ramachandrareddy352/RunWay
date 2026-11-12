@@ -8,7 +8,11 @@
     "typecheck": "tsc -p tsconfig.json",
     "sandbox-demo:inr": "tsx sandbox-demo.ts --inr",
     "submit-payload": "tsx submit-payload.ts",
-    "print-init": "tsx print-init.ts"
+    "print-init": "tsx print-init.ts",
+    "deploy-testnet": "tsx --env-file-if-exists=../.env deploy-testnet.ts",
+    "testnet-e2e": "tsx --env-file-if-exists=../.env --env-file-if-exists=../.env.agents.local testnet-e2e.ts",
+    "pin-exit": "tsx --env-file-if-exists=../.env pin-exit.ts",
+    "make-tester": "tsx --env-file-if-exists=../.env make-tester.ts"
   },
   "dependencies": {
     "@runway/agent-kit": "workspace:*",
@@ -20,6 +24,7 @@
     "@runway/sdk": "workspace:*",
     "@runway/underwriter": "workspace:*",
     "hono": "4.13.14",
+    "near-api-js": "5.1.1",
     "near-workspaces": "5.0.0"
   },
   "devDependencies": {

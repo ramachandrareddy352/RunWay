@@ -8,7 +8,7 @@ import { setupModal } from "@near-wallet-selector/modal-ui";
 import { setupMyNearWallet } from "@near-wallet-selector/my-near-wallet";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const DEFAULTS = { rpc: "https://rpc.testnet.near.org", credit: "credit.runway-rama.testnet" };
+const DEFAULTS = { rpc: "https://rpc.testnet.fastnear.com", credit: "credit.runway-rama.testnet" };
 const out = $<HTMLPreElement>("out");
 const rpc = $<HTMLInputElement>("rpc");
 const credit = $<HTMLInputElement>("credit");

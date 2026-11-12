@@ -6,3 +6,6 @@ Cargo.lock
 *.md
 contracts/
 packages/config/fixtures/
+
+# Machine-written deployment records
+deployments/

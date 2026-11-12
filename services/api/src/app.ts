@@ -55,6 +55,25 @@ export function createApp(d: AppDeps): Hono {
     return c.json({ ok: true, created }, created ? 201 : 200);
   });
 
+  // The INR gateway reports delivered UPI sales so the keeper settles them like any other inflow.
+  // Untrusted like the rest of this log: a fake entry only makes the keeper call the permissionless
+  // settle(), which splits whatever actually arrived.
+  app.post("/payments/upi", async (c) => {
+    if (rateLimited(clientOf(c))) return c.json({ error: "rate limited" }, 429);
+    const parsed = z
+      .object({ handle, paymentRefHash: z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,64}$/) })
+      .strict()
+      .safeParse(await c.req.json().catch(() => null));
+    if (!parsed.success) return c.json({ error: "bad request" }, 400);
+    const { created } = d.store.add({
+      handle: parsed.data.handle,
+      depositAddress: `upi-${parsed.data.paymentRefHash}`,
+      kind: "upi",
+      status: "SUCCESS",
+    });
+    return c.json({ ok: true, created }, created ? 201 : 200);
+  });
+
   app.get("/payments/:handle", (c) => {
     const h = handle.safeParse(c.req.param("handle"));
     if (!h.success) return c.json({ error: "bad request" }, 400);

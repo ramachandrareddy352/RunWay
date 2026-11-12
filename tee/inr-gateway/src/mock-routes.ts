@@ -29,7 +29,8 @@ ${
 </body></html>`;
 }
 
-export function mountMockRoutes(app: Hono, provider: MockInrProvider): void {
+/** `basePath`: where the gateway app is mounted, so the redirect after a button press stays on it. */
+export function mountMockRoutes(app: Hono, provider: MockInrProvider, basePath = ""): void {
   app.get("/mock/upi/:id", (c) => {
     const col = provider.collect(c.req.param("id"));
     if (!col) return c.text("unknown collect", 404);
@@ -50,7 +51,7 @@ export function mountMockRoutes(app: Hono, provider: MockInrProvider): void {
       headers: ev.headers,
     });
     if (c.req.header("accept")?.includes("application/json")) return c.json({ ok: res.ok, simulated: true });
-    return c.redirect(`/mock/upi/${encodeURIComponent(c.req.param("id"))}`, 303);
+    return c.redirect(`${basePath}/mock/upi/${encodeURIComponent(c.req.param("id"))}`, 303);
   });
 }
 
