@@ -21,6 +21,7 @@
     "@noble/hashes": "2.4.0",
     "@runway/config": "workspace:*",
     "@runway/fx": "workspace:*",
+    "@runway/scoring": "workspace:*",
     "@runway/sdk": "workspace:*",
     "@tanstack/react-query": "5.107.1",
     "near-api-js": "5.1.1",
