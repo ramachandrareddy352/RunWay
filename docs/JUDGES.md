@@ -12,6 +12,11 @@ browser (it loads through a service worker), and Pinata's free public gateway re
 The backend sleeps when idle (free hosting). If a page says the agent is unavailable, wait a minute and
 reload. [docs/TESTING.md](TESTING.md) is the full test plan, with the expected result of every step.
 
+The site explains itself: every page says what it does and previews the result before you confirm. It also
+has **Docs** (`/docs`: guides for merchants, lenders and customers, the rupee flows, worked examples with
+every balance, a glossary) and a **Simulator** (`/simulator`: the offer, repayment, lender and rupee maths,
+using the same code as the contracts and the underwriter).
+
 ## 1. A wallet (2 minutes)
 
 Install Meteor Wallet (or use MyNearWallet), switch it to **testnet**, create an account, and get free
