@@ -163,13 +163,27 @@ export function PayCrypto({ handle, settlement, amount, mode, deps }: Props) {
             deposit address); the payment is mock USDC on testnet.
           </SimulatedBanner>
         )}
+        <ol className="grid gap-2 text-xs text-subtle sm:grid-cols-3">
+          {[
+            ["1", "Choose the token and chain you'll pay from."],
+            ["2", "Give an address of yours on that chain, used only if the swap must be refunded."],
+            ["3", "Get a live quote. Your browser checks it before you can pay."],
+          ].map(([n, t]) => (
+            <li key={n} className="flex gap-2 rounded-lg bg-sand-50 p-2">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ink-700 text-[10px] font-bold text-sand-300">
+                {n}
+              </span>
+              {t}
+            </li>
+          ))}
+        </ol>
         <label className="block text-sm">
           <span className="mb-1 block font-medium">Pay with</span>
           <select
             aria-label="asset"
             value={assetId}
             onChange={(e) => setAssetId(e.target.value)}
-            className="w-full rounded-lg border border-line bg-bg px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-line bg-sand-50 px-3.5 py-2.5 text-sm text-ink-900 outline-none focus:border-ink-500 focus:ring-4 focus:ring-ink-100"
           >
             <option value="">Choose an asset…</option>
             {tokens.map((t) => (
@@ -187,7 +201,9 @@ export function PayCrypto({ handle, settlement, amount, mode, deps }: Props) {
           hint={
             token && refundTo && !refundOk
               ? `Not a valid ${token.blockchain} address`
-              : "Refunds go here if the swap can't complete."
+              : token && ["base", "arb", "eth", "op", "pol", "bsc"].includes(token.blockchain)
+                ? "Refunds go here if the swap can't complete. Any 0x… address of yours on that chain."
+                : "Refunds go here if the swap can't complete."
           }
         />
         <Button onClick={getQuote} disabled={!token || !refundOk || busy}>

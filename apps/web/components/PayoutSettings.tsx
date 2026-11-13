@@ -1,11 +1,11 @@
 "use client";
 // /merchant/settings (BUILD_PLAN T4b.9, test W12): payout mode, beneficiary registration (sealed to
 // the gateway; only a masked label comes back), and the ₹ payout history.
-import { formatInr } from "@runway/fx";
+import { formatInr, usdcToInr } from "@runway/fx";
 import type { PayoutRequest } from "@runway/sdk";
 import { useEffect, useState } from "react";
 import { fmtUsdc } from "../lib/format";
-import { Badge, Button, Card, ErrorText, Field } from "./ui";
+import { Badge, Button, Callout, Card, ErrorText, Field, Preview, Row } from "./ui";
 
 export type BeneficiaryInput =
   | { type: "vpa"; name: string; vpa: string }
@@ -16,6 +16,8 @@ export interface SettingsDeps {
   setPayoutMode(mode: "Usdc" | "Inr"): Promise<void>;
   registerBeneficiary(b: BeneficiaryInput): Promise<{ masked: string }>;
   history(): Promise<PayoutRequest[]>;
+  /** Live paise-per-USDC rate, for the conversion preview (optional). */
+  ratePpu?: number | null;
 }
 
 const VPA = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
@@ -74,70 +76,99 @@ export function PayoutSettings({ deps }: { deps: SettingsDeps }) {
     }
   }
 
+  const rate = deps.ratePpu ?? null;
+  const vpaHint =
+    kind === "vpa" && vpa && !VPA.test(vpa)
+      ? "A UPI ID looks like name@bank, for example ramatest@okaxis"
+      : undefined;
+
   return (
-    <div className="space-y-4">
-      <Card title="Payout currency">
-        <p className="mb-3 text-sm">
-          Current: <Badge tone="neutral">{mode ?? "…"}</Badge>{" "}
-          {mode === "Inr"
-            ? "Your share of each payment is paid out in rupees by the INR gateway."
-            : "Your share is sent as USDC on NEAR."}
-        </p>
-        <Button onClick={toggle} disabled={!mode || busy}>
-          Switch to {mode === "Usdc" ? "₹ (INR)" : "USDC"}
-        </Button>
-      </Card>
-      <Card title="Rupee payout account">
-        <div className="space-y-3">
-          <div className="flex gap-2 text-sm">
-            <label>
-              <input type="radio" checked={kind === "vpa"} onChange={() => setKind("vpa")} /> UPI
-            </label>
-            <label>
-              <input
-                type="radio"
-                checked={kind === "bank_account"}
-                onChange={() => setKind("bank_account")}
-              />{" "}
-              Bank account
-            </label>
-          </div>
-          <Field label="Name" value={name} onChange={(e) => setName(e.target.value)} />
-          {kind === "vpa" ? (
-            <Field
-              label="UPI ID"
-              placeholder="name@bank"
-              value={vpa}
-              onChange={(e) => setVpa(e.target.value)}
-            />
-          ) : (
-            <>
-              <Field label="IFSC" value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} />
-              <Field label="Account number" value={acct} onChange={(e) => setAcct(e.target.value)} />
-            </>
-          )}
-          <p className="text-xs text-subtle">
-            Encrypted in your browser to the attested INR gateway. Only a masked label is stored on-chain,
-            inside an encrypted blob.
-          </p>
-          <Button onClick={register} disabled={!valid || busy}>
-            Register
-          </Button>
-          {masked && (
-            <p className="text-sm" data-testid="masked">
-              Registered: <span className="font-mono">{masked}</span>
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card
+          title="Rupee payout account"
+          description="Step 1: where rupee payouts should go. Do this before switching to ₹."
+        >
+          <div className="space-y-4">
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-1.5">
+                <input type="radio" checked={kind === "vpa"} onChange={() => setKind("vpa")} /> UPI
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input
+                  type="radio"
+                  checked={kind === "bank_account"}
+                  onChange={() => setKind("bank_account")}
+                />{" "}
+                Bank account
+              </label>
+            </div>
+            <Field label="Name" value={name} onChange={(e) => setName(e.target.value)} />
+            {kind === "vpa" ? (
+              <Field
+                label="UPI ID"
+                placeholder="name@bank"
+                value={vpa}
+                onChange={(e) => setVpa(e.target.value)}
+              />
+            ) : (
+              <>
+                <Field label="IFSC" value={ifsc} onChange={(e) => setIfsc(e.target.value.toUpperCase())} />
+                <Field label="Account number" value={acct} onChange={(e) => setAcct(e.target.value)} />
+              </>
+            )}
+            {vpaHint && <p className="text-xs text-warn">{vpaHint}</p>}
+            <p className="text-xs text-subtle">
+              Encrypted in your browser to the attested INR gateway. Only a masked label is stored on-chain,
+              inside an encrypted blob.
             </p>
+            <Button onClick={register} disabled={!valid || busy}>
+              Register
+            </Button>
+            {masked && (
+              <p className="text-sm" data-testid="masked">
+                Registered: <span className="font-mono">{masked}</span>
+              </p>
+            )}
+          </div>
+        </Card>
+        <div className="space-y-6">
+          <Card title="Payout currency" description="Step 2: how your share of each payment reaches you.">
+            <p className="mb-4 text-sm">
+              Current: <Badge tone="ink">{mode ?? "…"}</Badge>{" "}
+              {mode === "Inr"
+                ? "Your share of each payment is paid out in rupees by the INR gateway."
+                : "Your share is sent as USDC on NEAR."}
+            </p>
+            <Button onClick={toggle} disabled={!mode || busy}>
+              Switch to {mode === "Usdc" ? "₹ (INR)" : "USDC"}
+            </Button>
+            <p className="mt-3 text-xs text-subtle">
+              In ₹ mode a new loan is also paid out in rupees. You can switch back at any time; it applies to
+              the next payment.
+            </p>
+          </Card>
+          {rate !== null && (
+            <Preview title="In rupees, at today's rate">
+              <Row label={`Rate (₹ per USDC)`} value={`₹${(rate / 100).toFixed(2)}`} />
+              <Row label="A 100 USDC share arrives as" value={formatInr(usdcToInr(100_000_000n, rate, 50))} />
+              <Row label="A 400 USDC share arrives as" value={formatInr(usdcToInr(400_000_000n, rate, 50))} />
+              <p className="pt-1 text-xs text-subtle">
+                ₹ = USDC × rate × 99.5%. The gateway keeps 0.5% and records the rate and a bank-reference hash
+                on-chain.
+              </p>
+            </Preview>
           )}
         </div>
-      </Card>
-      <Card title="₹ payout history">
+      </div>
+      <Card title="₹ payout history" description="Every rupee payout to this wallet, with its status.">
         {history.length === 0 ? (
           <p className="text-sm text-subtle">No rupee payouts yet.</p>
         ) : (
           <table className="w-full text-sm" aria-label="payout history">
             <thead>
-              <tr className="text-left text-subtle">
-                <th>#</th>
+              <tr className="text-left text-xs uppercase tracking-wider text-subtle">
+                <th className="py-2">#</th>
                 <th>Kind</th>
                 <th>USDC</th>
                 <th>₹</th>
@@ -146,18 +177,28 @@ export function PayoutSettings({ deps }: { deps: SettingsDeps }) {
             </thead>
             <tbody>
               {history.map((p) => (
-                <tr key={p.id}>
-                  <td className="font-mono">{p.id}</td>
+                <tr key={p.id} className="border-t border-line">
+                  <td className="py-2 font-mono">{p.id}</td>
                   <td>{p.kind}</td>
                   <td className="font-mono">{fmtUsdc(p.usdc)}</td>
                   <td className="font-mono">{p.inr_paise ? formatInr(BigInt(p.inr_paise)) : "—"}</td>
-                  <td>{p.status}</td>
+                  <td>
+                    <Badge tone={p.status === "Paid" ? "good" : p.status === "Failed" ? "bad" : "neutral"}>
+                      {p.status}
+                    </Badge>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </Card>
+      {mode === "Inr" && !masked && (
+        <Callout tone="warn">
+          Payouts are in ₹. Make sure a UPI ID or bank account is registered (step 1): a rupee payout to an
+          account without one fails and is refunded to you in USDC.
+        </Callout>
+      )}
       <ErrorText error={error} />
     </div>
   );

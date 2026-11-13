@@ -1,10 +1,11 @@
 "use client";
 // ₹ deposit and ₹ withdrawal for lenders (BUILD_PLAN T4b.9 /lend, test W11). Shares are still
 // runUSDC: rupees are converted to USDC at the gateway, and back at withdrawal.
-import { formatInr } from "@runway/fx";
+import { formatInr, inrToUsdc, usdcToInr } from "@runway/fx";
 import type { PayoutRequest } from "@runway/sdk";
 import { useCallback, useEffect, useState } from "react";
 import { fmtUsdc, parseRupees, parseUsdc } from "../lib/format";
+import { assetsForShares, sharesForDeposit } from "../lib/sim";
 import { CollectView, useCollect, type UpiDeps } from "./PayUpi";
 import { Badge, Button, Card, ErrorText, Field } from "./ui";
 
@@ -19,6 +20,9 @@ export interface LendRupeeDeps extends UpiDeps {
   claimWithdraw(requestId: string): Promise<void>;
   /** The newest lender_withdrawal payout for this account. */
   latestPayout(account: string): Promise<PayoutRequest | null>;
+  /** For previews (optional): the live rate and the vault's totals. */
+  ratePpu?: number | null;
+  vault?: { totalShares: bigint; totalAssets: bigint } | null;
 }
 
 export function RupeeDeposit({ deps }: { deps: LendRupeeDeps }) {
@@ -72,6 +76,22 @@ export function RupeeDeposit({ deps }: { deps: LendRupeeDeps }) {
               onChange={(e) => setRupees(e.target.value)}
               hint={paise ? formatInr(paise) : "e.g. 8500"}
             />
+            {!collect && paise && deps.ratePpu && deps.vault ? (
+              <div className="rounded-xl border border-sand-400/70 bg-sand-100 p-3 text-sm">
+                ≈ {fmtUsdc(inrToUsdc(paise, deps.ratePpu, 50))} USDC after conversion → about{" "}
+                <span className="font-mono font-semibold">
+                  {fmtUsdc(
+                    sharesForDeposit(
+                      inrToUsdc(paise, deps.ratePpu, 50),
+                      deps.vault.totalShares,
+                      deps.vault.totalAssets,
+                    ),
+                  )}{" "}
+                  runUSDC
+                </span>{" "}
+                at the current share price.
+              </div>
+            ) : null}
             <Button
               disabled={!storage || !paise}
               onClick={() =>
@@ -130,6 +150,22 @@ export function RupeeWithdraw({ deps, cooldownSec }: { deps: LendRupeeDeps; cool
           </p>
         )}
         <Field label="Shares (runUSDC)" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        {shares && deps.ratePpu && deps.vault && requestId === null ? (
+          <div className="rounded-xl border border-sand-400/70 bg-sand-100 p-3 text-sm">
+            Worth about {fmtUsdc(assetsForShares(shares, deps.vault.totalShares, deps.vault.totalAssets))}{" "}
+            USDC today → paid as about{" "}
+            <span className="font-mono font-semibold">
+              {formatInr(
+                usdcToInr(
+                  assetsForShares(shares, deps.vault.totalShares, deps.vault.totalAssets),
+                  deps.ratePpu,
+                  50,
+                ),
+              )}
+            </span>
+            . The final amount uses the share price and rate at claim time.
+          </div>
+        ) : null}
         <Button
           disabled={!beneficiary || !shares || requestId !== null}
           onClick={() => shares && deps.requestWithdraw(shares).then(setRequestId).catch(setError)}

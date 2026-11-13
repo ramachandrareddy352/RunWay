@@ -1,63 +1,29 @@
 @import "tailwindcss";
 
+/*
+ * Runway palette: deep blue-green "ink" (#274245) and "sand" (yellow sapling, #DFD6AE).
+ * Light sand surfaces with ink text and ink/sand accents; ink bands (header, hero, footer) with sand text.
+ */
 :root {
   color-scheme: light;
-  --c-bg: #f7f7f5;
-  --c-panel: #ffffff;
-  --c-fg: #161615;
-  --c-subtle: #5b5a56;
-  --c-line: #e2e1dc;
-  --c-muted: #efeeea;
-  --c-accent: #1f5fb0;
-  --c-accent-strong: #184c8d;
-  --c-good: #0f7a3d;
-  --c-bad: #b42318;
-  --c-warn: #a15c00;
-  /* chart roles (dataviz reference palette, validated) */
-  --viz-surface: #fcfcfb;
-  --viz-series-1: #2a78d6;
-  --viz-grid: #e6e5e0;
-  --viz-axis: #52514e;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme="light"])) {
-    color-scheme: dark;
-    --c-bg: #121211;
-    --c-panel: #1a1a19;
-    --c-fg: #f0efec;
-    --c-subtle: #b3b2a8;
-    --c-line: #2e2e2b;
-    --c-muted: #242422;
-    --c-accent: #5b9cf0;
-    --c-accent-strong: #7cb1f4;
-    --c-good: #4cc27d;
-    --c-bad: #f07467;
-    --c-warn: #e7a33e;
-    --viz-surface: #1a1a19;
-    --viz-series-1: #3987e5;
-    --viz-grid: #2e2e2b;
-    --viz-axis: #c3c2b7;
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --c-bg: #121211;
-  --c-panel: #1a1a19;
-  --c-fg: #f0efec;
-  --c-subtle: #b3b2a8;
-  --c-line: #2e2e2b;
-  --c-muted: #242422;
-  --c-accent: #5b9cf0;
-  --c-accent-strong: #7cb1f4;
-  --c-good: #4cc27d;
-  --c-bad: #f07467;
-  --c-warn: #e7a33e;
-  --viz-surface: #1a1a19;
-  --viz-series-1: #3987e5;
-  --viz-grid: #2e2e2b;
-  --viz-axis: #c3c2b7;
+  --c-bg: #f8f5ea;
+  --c-panel: #fffdf7;
+  --c-fg: #172a2c;
+  --c-subtle: #55686a;
+  --c-line: #e4ddc1;
+  --c-muted: #f2edd9;
+  --c-accent: #274245;
+  --c-accent-strong: #1b3033;
+  --c-on-accent: #dfd6ae;
+  --c-good: #2d7a57;
+  --c-bad: #b3432f;
+  --c-warn: #a66a10;
+  /* chart roles */
+  --viz-surface: #fffdf7;
+  --viz-series-1: #274245;
+  --viz-highlight: #b8a764;
+  --viz-grid: #ebe5cf;
+  --viz-axis: #55686a;
 }
 
 @theme inline {
@@ -69,15 +35,208 @@
   --color-muted: var(--c-muted);
   --color-accent: var(--c-accent);
   --color-accent-strong: var(--c-accent-strong);
+  --color-on-accent: var(--c-on-accent);
   --color-good: var(--c-good);
   --color-bad: var(--c-bad);
   --color-warn: var(--c-warn);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+@theme {
+  --color-ink-950: #0f1c1d;
+  --color-ink-900: #172a2c;
+  --color-ink-800: #1f3538;
+  --color-ink-700: #274245;
+  --color-ink-600: #34585c;
+  --color-ink-500: #4a777b;
+  --color-ink-400: #6f9a9d;
+  --color-ink-300: #9dbcbe;
+  --color-ink-200: #c9dbdc;
+  --color-ink-100: #e4eeee;
+  --color-ink-50: #f2f7f7;
+  --color-sand-50: #fbf9f0;
+  --color-sand-100: #f5f1de;
+  --color-sand-200: #ece5c6;
+  --color-sand-300: #dfd6ae;
+  --color-sand-400: #cdbf86;
+  --color-sand-500: #b8a764;
+  --color-sand-600: #978849;
+  --color-sand-700: #74683a;
+  --animate-fade-up: rw-fade-up 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-float: rw-float 6s ease-in-out infinite;
+  --animate-pulse-soft: rw-pulse 2.4s ease-in-out infinite;
 }
 
 body {
   background: var(--c-bg);
   color: var(--c-fg);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: #dfd6ae;
+  color: #172a2c;
+}
+
+:focus-visible {
+  outline: 2px solid #b8a764;
+  outline-offset: 2px;
+}
+
+/* ---------- motion ---------- */
+
+@keyframes rw-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rw-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes rw-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes rw-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes rw-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes rw-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Revealed on scroll by <Reveal> (adds .is-visible). */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.flow-line {
+  stroke-dasharray: 6 6;
+  animation: rw-dash 1.1s linear infinite;
+}
+
+.shimmer-text {
+  background: linear-gradient(90deg, #dfd6ae 0%, #fbf9f0 45%, #dfd6ae 60%, #b8a764 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rw-shimmer 8s linear infinite;
+}
+
+.bar-grow {
+  transform-origin: left center;
+  animation: rw-grow 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Subtle dotted texture for ink bands. */
+.ink-texture {
+  background-color: #274245;
+  background-image:
+    radial-gradient(circle at 20% 10%, rgba(223, 214, 174, 0.16), transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(111, 154, 157, 0.25), transparent 50%),
+    radial-gradient(rgba(223, 214, 174, 0.09) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    22px 22px;
+}
+
+.card-lift {
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 32px -18px rgba(23, 42, 44, 0.45);
+  border-color: #cdbf86;
+}
+
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+details > summary::-webkit-details-marker {
+  display: none;
+}
+details[open] .details-chevron {
+  transform: rotate(90deg);
+}
+
+input[type="range"] {
+  accent-color: #274245;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  .flow-dots {
+    display: none;
+  }
 }

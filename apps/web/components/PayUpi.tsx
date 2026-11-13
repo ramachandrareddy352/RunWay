@@ -1,7 +1,7 @@
 "use client";
 // UPI checkout through the INR gateway (BUILD_PLAN T4b.9, test W10). Amount in ₹ → POST /inr/collect
 // → QR (Razorpay) or the SIMULATED UPI page (mock) → poll until delivered.
-import { formatInr } from "@runway/fx";
+import { formatInr, inrToUsdc } from "@runway/fx";
 import { useEffect, useState } from "react";
 import { fmtUsdc, parseRupees } from "../lib/format";
 import { Badge, Button, Card, ErrorText, Field, SimulatedBanner } from "./ui";
@@ -36,6 +36,8 @@ export interface UpiDeps {
   collectStatus(id: string): Promise<CollectState>;
   explorerFor?(paymentRefHash: string): string;
   pollMs?: number;
+  /** Live paise-per-USDC rate, for a preview before the QR is created (optional). */
+  ratePpu?: number | null;
 }
 
 export function useCollect(deps: UpiDeps) {
@@ -157,6 +159,19 @@ export function PayUpi({ handle, deps }: { handle: string; deps: UpiDeps }) {
           onChange={(e) => setRupees(e.target.value)}
           hint={paise ? formatInr(paise) : "e.g. 8500"}
         />
+        {!collect && paise && paise > 0n && deps.ratePpu ? (
+          <div className="rounded-xl border border-sand-400/70 bg-sand-100 p-3 text-sm">
+            At today&apos;s rate (₹{(deps.ratePpu / 100).toFixed(2)} per USDC, minus 0.5%) {handle} receives
+            about{" "}
+            <span className="font-mono font-semibold">
+              {fmtUsdc(inrToUsdc(paise, deps.ratePpu, 50))} USDC
+            </span>
+            .
+            {paise > 10_000_000n && (
+              <span className="block text-warn">One UPI payment can be at most ₹1,00,000.</span>
+            )}
+          </div>
+        ) : null}
         <Button
           disabled={!paise || paise <= 0n}
           onClick={() => paise && start({ kind: "merchant_sale", handle, amount_paise: paise.toString() })}
@@ -165,6 +180,13 @@ export function PayUpi({ handle, deps }: { handle: string; deps: UpiDeps }) {
         </Button>
         <ErrorText error={error} />
         {collect && <CollectView collect={collect} state={state} explorerFor={deps.explorerFor} />}
+        {collect && (
+          <ol className="list-decimal space-y-1 pl-5 text-xs text-subtle">
+            <li>Open the SIMULATED UPI page (a real deployment shows a QR for any UPI app).</li>
+            <li>Press “Simulate success”. This page updates by itself: pending → paid → delivered.</li>
+            <li>Within about 30 seconds the payment is split and reaches the merchant.</li>
+          </ol>
+        )}
       </div>
     </Card>
   );
