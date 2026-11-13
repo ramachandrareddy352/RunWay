@@ -4,7 +4,7 @@
 import { completeBuckets, type LoanView } from "@runway/sdk";
 import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "../../components/art";
 import { useNow } from "../../components/motion";
 import { RevenueChart, type BucketPoint } from "../../components/RevenueChart";
@@ -54,14 +54,18 @@ export default function MerchantPage() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [txError, setTxError] = useState<unknown>(null);
-  const m = useAsync(
-    () => (w.accountId ? credit.merchantByAccount(w.accountId) : Promise.resolve(null)),
-    [w.accountId],
-  );
+  // ?view=<account>: anyone can look at a merchant's dashboard read-only (it is all public on-chain data).
+  const [viewAs, setViewAs] = useState<string | null>(null);
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("view");
+    if (v && /^[a-z0-9._-]{2,64}$/.test(v)) setViewAs(v);
+  }, []);
+  const account = w.accountId ?? viewAs;
+  const readOnly = !w.accountId && viewAs !== null;
+  const m = useAsync(() => (account ? credit.merchantByAccount(account) : Promise.resolve(null)), [account]);
   const usdcReady = useAsync(
-    () =>
-      w.accountId ? storageOf(DEPLOYMENT.token, w.accountId).then((s) => s !== null) : Promise.resolve(false),
-    [w.accountId],
+    () => (account ? storageOf(DEPLOYMENT.token, account).then((s) => s !== null) : Promise.resolve(false)),
+    [account],
   );
   const merchant = m.data;
   const chain = useAsync(async () => {
@@ -89,7 +93,7 @@ export default function MerchantPage() {
   };
 
   // ---------- not connected ----------
-  if (!w.accountId)
+  if (!account)
     return (
       <Container className="py-10">
         <PageHeader eyebrow="Merchants" title="Get paid. Get capital. Repay from sales.">
@@ -124,6 +128,16 @@ export default function MerchantPage() {
             <Card title="Start here">
               <p className="mb-4 text-sm text-subtle">Connect the wallet that should receive your payouts.</p>
               <Button onClick={w.signIn}>Connect wallet</Button>
+              <p className="mt-4 text-xs text-subtle">
+                Just looking?{" "}
+                <a
+                  className="font-semibold text-ink-700 underline"
+                  href="/merchant?view=spicecart.runway-rama.testnet"
+                >
+                  View the demo merchant&apos;s dashboard
+                </a>{" "}
+                (read-only).
+              </p>
             </Card>
             <Callout tone="tip" title="New to testnet?">
               You need a NEAR testnet wallet (Meteor works best) with about 4 NEAR from{" "}
@@ -161,7 +175,7 @@ export default function MerchantPage() {
       </Container>
     );
 
-  const usdcWarning = usdcReady.data === false && (
+  const usdcWarning = !readOnly && usdcReady.data === false && (
     <Callout tone="warn" title="Step 0: get test USDC first">
       Your wallet isn&apos;t registered with the USDC token yet, so it can&apos;t receive your sales or a
       loan. Open{" "}
@@ -173,6 +187,16 @@ export default function MerchantPage() {
   );
 
   // ---------- register ----------
+  if (!merchant && readOnly)
+    return (
+      <Container className="py-10">
+        <Card title="Not a merchant">
+          <p className="text-sm">
+            <span className="font-mono">{viewAs}</span> isn&apos;t registered as a Runway merchant.
+          </p>
+        </Card>
+      </Container>
+    );
   if (!merchant) {
     const valid = /^[a-z0-9]{2,32}$/.test(handle);
     return (
@@ -235,10 +259,11 @@ export default function MerchantPage() {
   const done = chain.data ? completeBuckets(chain.data.buckets, current) : [];
   const first = current - BigInt(done.length);
   const currentInflow = BigInt(chain.data?.buckets.find((b) => BigInt(b.bucket) === current)?.inflow ?? "0");
+  // The chart shows the last 12 windows; offers look at the last 6 completed ones.
   const points: BucketPoint[] = [
     ...done.map((v, i) => ({ bucket: first + BigInt(i), inflow: v, current: false })),
     ...(chain.data ? [{ bucket: current, inflow: currentInflow, current: true }] : []),
-  ];
+  ].slice(-12);
   const loan = chain.data?.loan;
   const repaidPct = loan ? Number((BigInt(loan.repaid) * 1000n) / BigInt(loan.owed)) / 10 : 0;
   const clock = windowClock(now);
@@ -335,14 +360,18 @@ export default function MerchantPage() {
           </span>
         }
         actions={
-          <>
-            <LinkButton href="/merchant/capital" variant="secondary">
-              Capital
-            </LinkButton>
-            <LinkButton href="/merchant/settings" variant="secondary">
-              Payout settings
-            </LinkButton>
-          </>
+          readOnly ? (
+            <Badge tone="warn">read-only view</Badge>
+          ) : (
+            <>
+              <LinkButton href="/merchant/capital" variant="secondary">
+                Capital
+              </LinkButton>
+              <LinkButton href="/merchant/settings" variant="secondary">
+                Payout settings
+              </LinkButton>
+            </>
+          )
         }
       >
         Payments to <span className="font-mono text-sm">{merchant.merchant.settlement}</span> are split
@@ -351,6 +380,12 @@ export default function MerchantPage() {
 
       <div className="space-y-6">
         {usdcWarning}
+        {readOnly && (
+          <Callout tone="info">
+            You&apos;re viewing this merchant&apos;s dashboard read-only: everything here is public on-chain
+            data. Connect your own wallet to register and manage your own.
+          </Callout>
+        )}
         <div className="rounded-2xl bg-ink-700 p-5 text-sand-100 shadow-lg sm:p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
@@ -494,35 +529,42 @@ export default function MerchantPage() {
               </div>
             </Card>
             <Card title="Payout" description="Where your share of each payment goes.">
-              <div className="space-y-3">
+              {readOnly ? (
                 <p className="text-sm">
-                  Claimable: <span className="font-mono">{fmtUsdc(merchant.claimable)}</span> USDC (payouts
-                  that couldn&apos;t be delivered).
+                  Payouts go to <span className="font-mono">{merchant.merchant.payout}</span>. Claimable:{" "}
+                  <span className="font-mono">{fmtUsdc(merchant.claimable)}</span> USDC.
                 </p>
-                <Button
-                  disabled={BigInt(merchant.claimable) === 0n || busy}
-                  onClick={() => run(() => claimPayout(w))}
-                >
-                  Claim payout
-                </Button>
-                <Field
-                  label="New payout account"
-                  value={newPayout}
-                  onChange={(e) => setNewPayout(e.target.value)}
-                  hint={`Now: ${merchant.merchant.payout}`}
-                />
-                <Button
-                  variant="secondary"
-                  disabled={!newPayout || busy}
-                  onClick={() => run(() => updatePayout(w, newPayout.trim()))}
-                >
-                  Update payout account
-                </Button>
-                <p className="text-xs text-subtle">
-                  Careful: the payout account is also the wallet that manages this merchant (it accepts
-                  offers). Only change it to a wallet you control.
-                </p>
-              </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm">
+                    Claimable: <span className="font-mono">{fmtUsdc(merchant.claimable)}</span> USDC (payouts
+                    that couldn&apos;t be delivered).
+                  </p>
+                  <Button
+                    disabled={BigInt(merchant.claimable) === 0n || busy}
+                    onClick={() => run(() => claimPayout(w))}
+                  >
+                    Claim payout
+                  </Button>
+                  <Field
+                    label="New payout account"
+                    value={newPayout}
+                    onChange={(e) => setNewPayout(e.target.value)}
+                    hint={`Now: ${merchant.merchant.payout}`}
+                  />
+                  <Button
+                    variant="secondary"
+                    disabled={!newPayout || busy}
+                    onClick={() => run(() => updatePayout(w, newPayout.trim()))}
+                  >
+                    Update payout account
+                  </Button>
+                  <p className="text-xs text-subtle">
+                    Careful: the payout account is also the wallet that manages this merchant (it accepts
+                    offers). Only change it to a wallet you control.
+                  </p>
+                </div>
+              )}
             </Card>
           </div>
         </div>
